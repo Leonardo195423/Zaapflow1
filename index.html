@@ -315,8 +315,8 @@
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
         }
         .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .message.received { background-color: #ffffff; align-self: flex-start; }
-        .message.sent { background-color: #dcf8c6; align-self: flex-end; }
+        .message.received { background-color: #ffffff; align-self: flex-start; color: black; /* Alterado para preto */ }
+        .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; /* Alterado para preto */ }
         .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
         .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
         .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
@@ -1582,6 +1582,7 @@
             
             // --- FLOW SIMULATION LOGIC ---
             let flowVariables = {}; // Stores user variables during simulation
+            let simulationMessages = []; // Stores messages for static HTML export
 
             /**
              * Adds a message to the preview chat body.
@@ -1605,6 +1606,9 @@
                 messageDiv.innerHTML += `<span>${text.replace(/\n/g, '<br>')}</span>`; // Add text and line breaks
                 previewChatBody.appendChild(messageDiv);
                 scrollToBottom();
+
+                // Store for static HTML export
+                simulationMessages.push({ text: text, type: type, imageUrl: imageUrl });
             }
 
             /**
@@ -1892,6 +1896,7 @@
             // Start flow simulation
             runFlowBtn.addEventListener('click', async () => {
                 previewChatBody.innerHTML = ''; // Clear preview chat
+                simulationMessages = []; // Clear messages for static HTML export
                 flowVariables = {}; // Reset flow variables
                 
                 // Find start node
@@ -1906,6 +1911,265 @@
                 console.log("Starting flow. Initial connections:", connections);
                 simulateFlow(startNode.id); // Start simulation from start node
             });
+
+            // --- NEW: GENERATE AND DOWNLOAD CHAT HTML ---
+            downloadHtmlBtn.addEventListener('click', async () => {
+                // First, run a simulation to capture messages for the static HTML
+                previewChatBody.innerHTML = ''; // Clear preview chat
+                simulationMessages = []; // Reset messages for export
+                flowVariables = {}; // Reset variables for export simulation
+
+                const startNode = Object.values(nodes).find(node => node.type === 'start');
+                if (!startNode) {
+                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo para gerar HTML.');
+                    return;
+                }
+
+                // Run a headless simulation to collect messages
+                await simulateFlowForHtmlExport(startNode.id);
+
+                const chatHtml = generateChatHtmlContent(simulationMessages, botNameInput.value, botProfilePicInput.value);
+                const blob = new Blob([chatHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'zapflow_chat_preview.html';
+                a.click();
+                URL.revokeObjectURL(url);
+                showAlertModal('Sucesso!', 'Pré-visualização do chat exportada como "zapflow_chat_preview.html".');
+            });
+
+            /**
+             * Simulates the flow to collect messages for HTML export.
+             * This version does not interact with the DOM, only collects data.
+             * It makes assumptions for user input and multiple choices to create a linear path.
+             * @param {string} currentNodeId - The ID of the current node to be processed.
+             * @param {object} currentFlowVariables - Current state of flow variables.
+             * @returns {Promise<void>}
+             */
+            async function simulateFlowForHtmlExport(currentNodeId, currentFlowVariables = {}, messages = []) {
+                const currentNode = nodes[currentNodeId];
+                if (!currentNode) {
+                    messages.push({ text: "Fluxo terminado ou nó inválido alcançado.", type: "received" });
+                    return;
+                }
+
+                // Replace variables in node content before processing
+                let processedContent = currentNode.content.map(c => {
+                    let text = c;
+                    for (const key in currentFlowVariables) {
+                        text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), currentFlowVariables[key]);
+                    }
+                    return text;
+                });
+
+                switch (currentNode.type) {
+                    case 'start':
+                        const startConnection = connections.find(c => c.from === currentNode.id);
+                        if (startConnection) {
+                            await simulateFlowForHtmlExport(startConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'end':
+                        messages.push({ text: "Fluxo finalizado.", type: "received" });
+                        return;
+
+                    case 'message':
+                        messages.push({ text: processedContent[0], type: "received" });
+                        const msgConnection = connections.find(c => c.from === currentNode.id);
+                        if (msgConnection) {
+                            await simulateFlowForHtmlExport(msgConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Mensagem' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'image':
+                        messages.push({ text: "Enviando imagem...", type: "received", imageUrl: processedContent[0] });
+                        const imgConnection = connections.find(c => c.from === currentNode.id);
+                        if (imgConnection) {
+                            await simulateFlowForHtmlExport(imgConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Imagem' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'question':
+                        const questionText = processedContent[0];
+                        messages.push({ text: questionText, type: "received" });
+                        // For static export, assume "Sim" (choice 0)
+                        const assumedQuestionChoice = 'yes';
+                        messages.push({ text: 'Sim', type: 'sent' });
+
+                        const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === assumedQuestionChoice);
+                        if (questionConnection) {
+                            await simulateFlowForHtmlExport(questionConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: `Nenhuma conexão definida para a opção "Sim". Fluxo terminou.`, type: "received" });
+                        }
+                        break;
+
+                    case 'multipleChoice':
+                        const mcQuestionText = processedContent[0];
+                        const mcOptions = processedContent.slice(1);
+                        messages.push({ text: mcQuestionText, type: "received" });
+                        // For static export, assume the first option (choice 0)
+                        const assumedMcChoiceIndex = 0;
+                        if (mcOptions[assumedMcChoiceIndex]) {
+                            messages.push({ text: mcOptions[assumedMcChoiceIndex], type: 'sent' });
+                        } else {
+                            messages.push({ text: 'Nenhuma opção disponível.', type: 'sent' });
+                        }
+
+                        const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === assumedMcChoiceIndex);
+                        if (mcConnection) {
+                            await simulateFlowForHtmlExport(mcConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: `Nenhuma conexão definida para a primeira opção. Fluxo terminou.`, type: "received" });
+                        }
+                        break;
+
+                    case 'userInput':
+                        const inputPrompt = processedContent[0];
+                        const variableName = processedContent[1] || 'user_input';
+                        messages.push({ text: inputPrompt, type: "received" });
+                        const assumedUserInput = `[Resposta do Usuário para ${variableName}]`; // Placeholder for static export
+                        messages.push({ text: assumedUserInput, type: 'sent' });
+                        currentFlowVariables[variableName] = assumedUserInput; // Update variables for subsequent nodes
+
+                        const userInputConnection = connections.find(c => c.from === currentNode.id);
+                        if (userInputConnection) {
+                            await simulateFlowForHtmlExport(userInputConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'delay':
+                        // Delays are skipped for static HTML export, but we can add a message
+                        messages.push({ text: `[Pausa de ${processedContent[0] || '1500'}ms]`, type: "received" });
+                        const delayConnection = connections.find(c => c.from === currentNode.id);
+                        if (delayConnection) {
+                            await simulateFlowForHtmlExport(delayConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Atraso' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'cta':
+                        const ctaText = processedContent[0] || 'Visitar Link';
+                        const ctaUrl = processedContent[1] || '#';
+                        messages.push({ text: "Fluxo concluído! Clique no botão final.", type: "received" });
+                        messages.push({ cta: { text: ctaText, url: ctaUrl }, type: "cta" }); // Special type for CTA
+                        break;
+
+                    default:
+                        messages.push({ text: `Tipo de nó desconhecido: ${currentNode.type}. Fluxo terminado.`, type: "received" });
+                        break;
+                }
+                // The `messages` array is modified by reference, so no return needed.
+            }
+
+            /**
+             * Generates the full HTML content for the chat preview.
+             * @param {Array<object>} messages - Array of message objects (from simulateFlowForHtmlExport).
+             * @param {string} botName - The bot's name.
+             * @param {string} botAvatar - The bot's avatar URL.
+             * @returns {string} The complete HTML string.
+             */
+            function generateChatHtmlContent(messages, botName, botAvatar) {
+                const chatMessagesHtml = messages.map(msg => {
+                    if (msg.type === 'cta') {
+                        return `
+                            <div class="cta-button-container">
+                                <a class="cta-button" href="${msg.cta.url}" target="_blank">${msg.cta.text}</a>
+                            </div>
+                        `;
+                    }
+                    const imgHtml = msg.imageUrl ? `<img src="${msg.imageUrl}" onerror="this.onerror=null;this.src='https://placehold.co/150x100/CCCCCC/000000?text=Imagem+N%C3%A3o+Encontrada';">` : '';
+                    return `
+                        <div class="message ${msg.type}">
+                            ${imgHtml}<span>${msg.text.replace(/\n/g, '<br>')}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                // Extract the relevant CSS for the chat preview
+                const chatCss = `
+                    body {
+                        font-family: 'Roboto', sans-serif;
+                        background-color: #f0f0f0; /* Lighter background for standalone chat */
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100vh;
+                        margin: 0;
+                    }
+                    .mobile-preview {
+                        width: 100%; max-width: 380px; height: 90vh; background-color: #111;
+                        border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                        display: flex; flex-direction: column; overflow: hidden;
+                    }
+                    .chat-header {
+                        background-color: #075E54; color: white; padding: 10px 15px; display: flex;
+                        align-items: center; gap: 15px; flex-shrink: 0;
+                    }
+                    .chat-header img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
+                    .chat-header .name { font-weight: bold; }
+                    .chat-header .status { font-size: 0.8em; color: #d1d1d1; }
+                    .chat-body {
+                        flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column;
+                        gap: 12px; background-color: #e5ddd5;
+                        background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+                    }
+                    .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+                    .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
+                    .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
+                    .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+                    .choice-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 5px 10px; align-self: flex-end; }
+                    .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: background-color 0.2s, color 0.2s; }
+                    .choice-button:hover { background-color: #075E54; color: white; }
+                    .cta-button-container { padding: 10px; align-self: stretch; }
+                    .cta-button { background: linear-gradient(45deg, #25D366, #128C7E); color: white; text-align: center; text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px; border-radius: 30px; display: block; transition: transform 0.2s; }
+                    .cta-button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+                    .user-input-container { display: flex; gap: 5px; margin-top: 10px; align-self: stretch; }
+                    .user-input-container input { flex-grow: 1; padding: 8px; border-radius: 20px; border: 1px solid #ccc; }
+                    .user-input-container button { padding: 8px 15px; border-radius: 20px; border: none; background-color: #075E54; color: white; cursor: pointer; }
+                `;
+
+                return `
+                    <!DOCTYPE html>
+                    <html lang="pt-BR">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>ZAPFLOW Chat Preview</title>
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                        <style>
+                            ${chatCss}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="mobile-preview">
+                            <div class="chat-header">
+                                <img src="${botAvatar}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
+                                <div class="contact-info">
+                                    <div class="name">${botName}</div>
+                                    <div class="status">online</div>
+                                </div>
+                            </div>
+                            <div class="chat-body">
+                                ${chatMessagesHtml}
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `;
+            }
+
 
             // --- INITIALIZATION ---
             function init() {

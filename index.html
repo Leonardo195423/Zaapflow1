@@ -314,17 +314,9 @@
             gap: 12px; background-color: #e5ddd5;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
         }
-        /* Corrigir: Texto das mensagens do bot deve ser preto */
-        .message.received { 
-            background-color: #ffffff; 
-            align-self: flex-start; 
-            color: #000; /* Corrigido: Definir cor do texto para preto */
-        }
-        .message.sent { 
-            background-color: #dcf8c6; 
-            align-self: flex-end; 
-            color: #000; /* As mensagens enviadas também devem ser pretas para consistência */
-        }
+        .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .message.received { background-color: #ffffff; align-self: flex-start; }
+        .message.sent { background-color: #dcf8c6; align-self: flex-end; }
         .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
         .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
         .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
@@ -338,7 +330,7 @@
         .cta-button { background: linear-gradient(45deg, #25D366, #128C7E); color: white; text-align: center; text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px; border-radius: 30px; display: block; transition: transform 0.2s; }
         .cta-button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         .user-input-container { display: flex; gap: 5px; margin-top: 10px; align-self: stretch; }
-        .user-input-container input { flex-grow: 1; padding: 8px; border-radius: 20px; border: 1px solid #ccc; color: #000; /* Corrigido: Cor do texto de input do usuário */ }
+        .user-input-container input { flex-grow: 1; padding: 8px; border-radius: 20px; border: 1px solid #ccc; }
         .user-input-container button { padding: 8px 15px; border-radius: 20px; border: none; background-color: #075E54; color: white; cursor: pointer; }
 
 
@@ -414,6 +406,7 @@
 </head>
 <body>
 
+    <!-- TELA DE LOGIN -->
     <div id="login-screen">
         <div id="login-box">
             <h2>Bem-vindo ao ZAPFLOW</h2>
@@ -433,12 +426,14 @@
         </div>
     </div>
 
+    <!-- APLICAÇÃO PRINCIPAL (INICIALMENTE OCULTA) -->
     <div id="app-container" class="app-container hidden">
         <div id="side-panel" class="panel">
             <div class="panel-header">
                 <span><i class="fas fa-sitemap"></i> Blocos do Fluxo</span>
                 <button id="logout-button" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
             </div>
+            <!-- Novo: Nó de Início Arrastável -->
             <div class="node-template" draggable="true" data-type="start">
                 <i class="fas fa-flag-checkered"></i> Início do Fluxo
             </div>
@@ -463,10 +458,12 @@
             <div class="node-template" draggable="true" data-type="cta">
                 <i class="fas fa-rocket"></i> Botão Final (CTA)
             </div>
+            <!-- Novo: Nó de Fim Arrastável -->
             <div class="node-template" draggable="true" data-type="end">
                 <i class="fas fa-stop-circle"></i> Fim do Fluxo
             </div>
 
+            <!-- Bot Settings Section -->
             <div class="bot-settings">
                 <div class="panel-header">
                     <span><i class="fas fa-robot"></i> Configurações do Bot</span>
@@ -513,6 +510,7 @@
         </div>
     </div>
 
+    <!-- CUSTOM MODAL HTML -->
     <div id="custom-modal-overlay" class="custom-modal-overlay hidden">
         <div class="custom-modal">
             <h3 id="modal-title"></h3>
@@ -1907,481 +1905,6 @@
                 await new Promise(r => setTimeout(r, 1000)); // Small delay before starting actual flow
                 console.log("Starting flow. Initial connections:", connections);
                 simulateFlow(startNode.id); // Start simulation from start node
-            });
-
-            // --- DOWNLOAD HTML EXECUTÁVEL ---
-            downloadHtmlBtn.addEventListener('click', () => {
-                const flowState = {
-                    nodes: Object.values(nodes).map(n => ({
-                        id: n.id,
-                        type: n.type,
-                        content: n.content
-                    })),
-                    connections: connections.map(c => ({
-                        from: c.from,
-                        to: c.to,
-                        choice: c.choice
-                    })),
-                    botSettings: {
-                        name: botNameInput.value,
-                        profilePic: botProfilePicInput.value
-                    }
-                };
-
-                const exportHtmlTemplate = (flowData) => `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot ZAPFLOW</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .mobile-preview {
-            width: 100%;
-            max-width: 380px;
-            height: 80vh; /* Adjust height for standalone version */
-            background-color: #111;
-            border-radius: 40px;
-            border: 10px solid #000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .chat-header {
-            background-color: #075E54;
-            color: white;
-            padding: 10px 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-shrink: 0;
-        }
-        .chat-header img {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        .chat-header .name {
-            font-weight: bold;
-        }
-        .chat-header .status {
-            font-size: 0.8em;
-            color: #d1d1d1;
-        }
-        .chat-body {
-            flex-grow: 1;
-            padding: 15px 10px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background-color: #e5ddd5;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-        }
-        .message {
-            max-width: 80%;
-            padding: 8px 12px;
-            border-radius: 8px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .message.received {
-            background-color: #ffffff;
-            align-self: flex-start;
-            color: #000; /* Text color for received messages */
-        }
-        .message.sent {
-            background-color: #dcf8c6;
-            align-self: flex-end;
-            color: #000; /* Text color for sent messages */
-        }
-        .message img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin-top: 5px;
-        }
-        .typing-indicator {
-            align-self: flex-start;
-            padding: 10px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #ffffff;
-            border-radius: 8px;
-            max-width: 80px;
-        }
-        .typing-indicator span {
-            height: 8px;
-            width: 8px;
-            background-color: #888;
-            border-radius: 50%;
-            display: inline-block;
-            margin: 0 2px;
-            animation: bounce 1.3s infinite ease-in-out;
-        }
-        .typing-indicator span:nth-child(2) { animation-delay: 0.1s; }
-        .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-        .choice-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: flex-end;
-            padding: 5px 10px;
-            align-self: flex-end;
-        }
-        .choice-button {
-            background-color: #fff;
-            border: 1px solid #075E54;
-            color: #075E54;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.2s, color 0.2s;
-        }
-        .choice-button:hover {
-            background-color: #075E54;
-            color: white;
-        }
-        .cta-button-container {
-            padding: 10px;
-            align-self: stretch;
-        }
-        .cta-button {
-            background: linear-gradient(45deg, #25D366, #128C7E);
-            color: white;
-            text-align: center;
-            text-decoration: none;
-            font-size: 1.1em;
-            font-weight: bold;
-            padding: 15px;
-            border-radius: 30px;
-            display: block;
-            transition: transform 0.2s;
-        }
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .user-input-container {
-            display: flex;
-            gap: 5px;
-            margin-top: 10px;
-            align-self: stretch;
-        }
-        .user-input-container input {
-            flex-grow: 1;
-            padding: 8px;
-            border-radius: 20px;
-            border: 1px solid #ccc;
-            color: #000;
-        }
-        .user-input-container button {
-            padding: 8px 15px;
-            border-radius: 20px;
-            border: none;
-            background-color: #075E54;
-            color: white;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-    <div class="mobile-preview">
-        <div class="chat-header">
-            <img id="preview-bot-avatar" src="${flowData.botSettings.profilePic}" alt="Atendente">
-            <div class="contact-info">
-                <div id="preview-bot-name" class="name">${flowData.botSettings.name}</div>
-                <div class="status">online</div>
-            </div>
-        </div>
-        <div class="chat-body" id="preview-chat-body"></div>
-    </div>
-
-    <script>
-        const flowData = ${JSON.stringify(flowData, null, 2)};
-        let flowNodes = {};
-        flowData.nodes.forEach(node => {
-            flowNodes[node.id] = node;
-        });
-
-        const flowConnections = flowData.connections;
-        let flowVariables = {};
-
-        const previewChatBody = document.getElementById('preview-chat-body');
-        const botName = document.getElementById('preview-bot-name');
-        const botAvatar = document.getElementById('preview-bot-avatar');
-
-        botName.textContent = flowData.botSettings.name || 'ZAPFLOW BOT';
-        botAvatar.src = flowData.botSettings.profilePic || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
-        botAvatar.onerror = function() {
-            this.onerror=null;
-            this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';
-        };
-
-        function addMessage(text, type, imageUrl = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = \`message \${type}\`;
-            if (imageUrl) {
-                const img = document.createElement('img');
-                img.src = imageUrl;
-                img.onerror = function() {
-                    this.onerror=null;
-                    this.src='https://placehold.co/150x100/CCCCCC/000000?text=Imagem+N%C3%A3o+Encontrada';
-                };
-                messageDiv.appendChild(img);
-            }
-            messageDiv.innerHTML += \`<span>\${text.replace(/\\n/g, '<br>')}\</span>\`;
-            previewChatBody.appendChild(messageDiv);
-            scrollToBottom();
-        }
-
-        function addTypingIndicator() {
-            const indicator = document.createElement('div');
-            indicator.className = 'typing-indicator';
-            indicator.innerHTML = '<span></span><span></span><span></span>';
-            previewChatBody.appendChild(indicator);
-            scrollToBottom();
-            return indicator;
-        }
-
-        function removeTypingIndicator(indicatorEl) {
-            if (indicatorEl) {
-                indicatorEl.remove();
-            }
-        }
-
-        function scrollToBottom() {
-            previewChatBody.scrollTop = previewChatBody.scrollHeight;
-        }
-
-        function waitForUserChoice(choices) {
-            return new Promise(resolve => {
-                const choiceContainer = document.createElement('div');
-                choiceContainer.className = 'choice-container';
-                choices.forEach((choiceText, index) => {
-                    const button = document.createElement('button');
-                    button.className = 'choice-button';
-                    let processedChoiceText = choiceText;
-                    for (const key in flowVariables) {
-                        processedChoiceText = processedChoiceText.replace(new RegExp(\`\\\\{\\\\{{}\\\\}}\`, 'g'), flowVariables[key]);
-                    }
-                    button.textContent = processedChoiceText;
-                    button.onclick = () => {
-                        choiceContainer.remove();
-                        resolve(index);
-                    };
-                    choiceContainer.appendChild(button);
-                });
-                previewChatBody.appendChild(choiceContainer);
-                scrollToBottom();
-            });
-        }
-
-        function waitForUserInput(promptText) {
-            return new Promise(resolve => {
-                let processedPromptText = promptText;
-                for (const key in flowVariables) {
-                    processedPromptText = processedPromptText.replace(new RegExp(\`\\\\{\\\\{{}\\\\}}\`, 'g'), flowVariables[key]);
-                }
-                addMessage(processedPromptText, "received");
-
-                const inputContainer = document.createElement('div');
-                inputContainer.className = 'user-input-container';
-                const inputField = document.createElement('input');
-                inputField.type = 'text';
-                inputField.placeholder = 'Digite sua resposta...';
-                const sendButton = document.createElement('button');
-                sendButton.textContent = 'Enviar';
-
-                sendButton.onclick = () => {
-                    const userText = inputField.value.trim();
-                    if (userText) {
-                        inputContainer.remove();
-                        resolve(userText);
-                    }
-                };
-                inputField.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        sendButton.click();
-                    }
-                });
-
-                inputContainer.appendChild(inputField);
-                inputContainer.appendChild(sendButton);
-                previewChatBody.appendChild(inputContainer);
-                scrollToBottom();
-                inputField.focus();
-            });
-        }
-
-        async function runFlow(currentNodeId) {
-            const currentNode = flowNodes[currentNodeId];
-            if (!currentNode) {
-                addMessage("Fluxo terminado ou nó inválido alcançado.", "received");
-                return;
-            }
-
-            try {
-                let processedContent = currentNode.content.map(c => {
-                    let text = c;
-                    for (const key in flowVariables) {
-                        text = text.replace(new RegExp(\`\\\\{\\\\{{}\\\\}}\`, 'g'), flowVariables[key]);
-                    }
-                    return text;
-                });
-
-                switch (currentNode.type) {
-                    case 'start':
-                        const startConnection = flowConnections.find(c => c.from === currentNode.id);
-                        if (startConnection) {
-                            await runFlow(startConnection.to);
-                        } else {
-                            addMessage("Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", "received");
-                        }
-                        break;
-
-                    case 'end':
-                        addMessage("Fluxo finalizado.", "received");
-                        return;
-
-                    case 'message':
-                        addMessage(processedContent[0], "received");
-                        await new Promise(r => setTimeout(r, 500));
-                        const msgConnection = flowConnections.find(c => c.from === currentNode.id);
-                        if (msgConnection) {
-                            await runFlow(msgConnection.to);
-                        } else {
-                            addMessage("Nó 'Mensagem' não conectado. Fluxo terminou.", "received");
-                        }
-                        break;
-
-                    case 'image':
-                        addMessage("Enviando imagem...", "received", processedContent[0]);
-                        await new Promise(r => setTimeout(r, 1000));
-                        const imgConnection = flowConnections.find(c => c.from === currentNode.id);
-                        if (imgConnection) {
-                            await runFlow(imgConnection.to);
-                        } else {
-                            addMessage("Nó 'Imagem' não conectado. Fluxo terminou.", "received");
-                        }
-                        break;
-
-                    case 'question':
-                        addMessage(processedContent[0], "received");
-                        const choiceSelected = await waitForUserChoice(['Sim', 'Não']);
-                        addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent');
-                        const questionChoice = (choiceSelected === 0) ? 'yes' : 'no';
-                        const questionConnection = flowConnections.find(c => c.from === currentNode.id && c.choice === questionChoice);
-                        if (questionConnection) {
-                            await runFlow(questionConnection.to);
-                        } else {
-                            addMessage(\`Nenhuma conexão definida para a opção "\${questionChoice === 'yes' ? 'Sim' : 'Não'}". Fluxo terminou.\`, "received");
-                        }
-                        break;
-
-                    case 'multipleChoice':
-                        const mcQuestionText = processedContent[0];
-                        const mcOptions = processedContent.slice(1);
-                        addMessage(mcQuestionText, "received");
-                        const mcChoiceIndex = await waitForUserChoice(mcOptions);
-                        addMessage(mcOptions[mcChoiceIndex], 'sent');
-                        const mcConnection = flowConnections.find(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex);
-                        if (mcConnection) {
-                            await runFlow(mcConnection.to);
-                        } else {
-                            addMessage(\`Nenhuma conexão definida para a opção "\${mcOptions[mcChoiceIndex]}". Fluxo terminou.\`, "received");
-                        }
-                        break;
-
-                    case 'userInput':
-                        const inputPrompt = processedContent[0];
-                        const variableName = processedContent[1] || 'user_input';
-                        const userInput = await waitForUserInput(inputPrompt);
-                        addMessage(userInput, 'sent');
-                        flowVariables[variableName] = userInput;
-                        const userInputConnection = flowConnections.find(c => c.from === currentNode.id);
-                        if (userInputConnection) {
-                            await runFlow(userInputConnection.to);
-                        } else {
-                            addMessage("Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", "received");
-                        }
-                        break;
-
-                    case 'delay':
-                        const delayMs = parseInt(processedContent[0] || '1500', 10);
-                        const indicator = addTypingIndicator();
-                        await new Promise(r => setTimeout(r, delayMs));
-                        removeTypingIndicator(indicator);
-                        const delayConnection = flowConnections.find(c => c.from === currentNode.id);
-                        if (delayConnection) {
-                            await runFlow(delayConnection.to);
-                        } else {
-                            addMessage("Nó 'Atraso' não conectado. Fluxo terminou.", "received");
-                        }
-                        break;
-
-                    case 'cta':
-                        const ctaText = processedContent[0] || 'Visitar Link';
-                        const ctaUrl = processedContent[1] || '#';
-                        const ctaContainer = document.createElement('div');
-                        ctaContainer.className = 'cta-button-container';
-                        const ctaButton = document.createElement('a');
-                        ctaButton.className = 'cta-button';
-                        ctaButton.href = ctaUrl;
-                        ctaButton.textContent = ctaText;
-                        ctaButton.target = '_blank';
-                        ctaContainer.appendChild(ctaButton);
-                        previewChatBody.appendChild(ctaContainer);
-                        scrollToBottom();
-                        addMessage("Fluxo concluído! Clique no botão final.", "received");
-                        break;
-                }
-            } catch (error) {
-                console.error("Erro durante a execução do fluxo:", error);
-                addMessage("Ocorreu um erro durante a execução do fluxo. Por favor, recarregue a página.", "received");
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const startNode = Object.values(flowNodes).find(node => node.type === 'start');
-            if (startNode) {
-                addMessage("Olá! Estou pronto para iniciar o fluxo.", "received");
-                setTimeout(() => runFlow(startNode.id), 1000);
-            } else {
-                addMessage("Nenhum nó de 'Início' encontrado no fluxo. O chatbot não pode ser iniciado.", "received");
-            }
-        });
-    </script>
-</body>
-</html>
-                `;
-
-                const htmlContent = exportHtmlTemplate(flowState);
-                const blob = new Blob([htmlContent], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'chatbot_zapflow.html';
-                a.click();
-                URL.revokeObjectURL(url);
-                showAlertModal('Sucesso!', 'HTML do Chatbot exportado como "chatbot_zapflow.html".');
             });
 
             // --- INITIALIZATION ---

@@ -173,7 +173,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Allows clicks to pass through to elements below */
+            /* Remove pointer-events: none; so that clicks on SVG lines can be detected for deletion */
+            /* We will manage click throughs directly in JS if needed */
         }
 
         /* --- BLOCOS NO CANVAS --- */
@@ -196,7 +197,6 @@
             box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
             z-index: 6; /* Bring selected node to front */
         }
-        /* New: Z-index for actively dragged node to prevent visual "duplication" */
         .flow-node.dragging {
             z-index: 9999 !important; /* Extremely high z-index to ensure it's always on top */
         }
@@ -208,8 +208,25 @@
             font-weight: bold;
             border-top-left-radius: 7px;
             border-top-right-radius: 7px;
+            display: flex; /* Added for delete button alignment */
+            justify-content: space-between; /* Added for delete button alignment */
+            align-items: center; /* Added for delete button alignment */
         }
         .node-header i { margin-right: 8px; }
+        /* Style for the delete button */
+        .delete-node-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 1em;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: color 0.2s;
+        }
+        .delete-node-btn:hover {
+            color: var(--primary-accent);
+        }
+
         .node-content {
             padding: 10px;
             flex-grow: 1;
@@ -248,7 +265,7 @@
             border-radius: 50%;
             position: absolute;
             cursor: crosshair;
-            transition: background-color 0.3s, border-color 0.3s; /* Added border-color transition */
+            transition: background-color 0.3s, border-color 0.3s;
             z-index: 10; /* Keep connectors on top of node content */
         }
         .connector:hover { 
@@ -437,12 +454,7 @@
             <div id="flow-canvas">
                 <!-- A camada SVG agora está DENTRO do flow-canvas para herdar transformações -->
                 <svg id="svg-layer">
-                    <!-- Definição da ponta de seta para as linhas de conexão -->
-                    <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#e94560" /> <!-- Neon Red Arrowhead -->
-                        </marker>
-                    </defs>
+                    <!-- Definição da ponta de seta foi removida conforme solicitado -->
                 </svg>
                 <!-- Os nós serão adicionados aqui como filhos diretos do flow-canvas -->
             </div>
@@ -586,7 +598,7 @@
             let nodes = {}, connections = [], nodeIdCounter = 0, selectedNodeId = null,
                 isConnecting = false, connectionStart = {};
             let pan = { x: 0, y: 0, scale: 1, isPanning: false, startX: 0, startY: 0 };
-            let tempLine = null; // Usado para desenhar a linha de conexão temporária
+            let currentTempLine = null; // Usado para desenhar a linha de conexão temporária
             let hoveredInputConnector = null; // Track currently highlighted input connector
 
             // --- LÓGICA DE ZOOM E PANORÂMICA ---
@@ -612,7 +624,7 @@
                     const clickedNode = e.target.closest('.flow-node');
                     // Somente seleciona o nó se o clique não for em um input/textarea/conector,
                     // caso contrário, permite a interação com o elemento filho.
-                    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT' && !e.target.classList.contains('connector')) {
+                    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT' && !e.target.classList.contains('connector') && !e.target.classList.contains('delete-node-btn')) {
                         selectNode(clickedNode.id);
                     }
                     return; // Permite que o makeNodeDraggable ou handleConnectorClick lidem com o evento
@@ -638,8 +650,6 @@
 
             function updateCanvasTransform() {
                 flowCanvas.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${pan.scale})`;
-                // Como svgLayer é filho de flowCanvas, ele já herda a transformação.
-                // Apenas redesenhar as linhas é necessário para suas posições.
                 redrawAllConnections(); 
             }
 
@@ -659,6 +669,7 @@
             sidePanel.querySelectorAll('.node-template').forEach(template => {
                 template.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', e.target.dataset.type);
+                    e.dataTransfer.setDragImage(new Image(), 0, 0); // Hide the default drag image
                 });
             });
 
@@ -766,7 +777,7 @@
                 }
 
                 nodeEl.innerHTML = `
-                    <div class="node-header"><i class="fas ${headerIcon}"></i> ${headerText}</div>
+                    <div class="node-header"><i class="fas ${headerIcon}"></i> ${headerText} <i class="fas fa-trash-alt delete-node-btn"></i></div>
                     <div class="node-content">${contentHtml}</div>
                 `;
                 
@@ -818,7 +829,7 @@
                     if (content.length === 0) {
                         nodes[nodeId].content = ['Nova Pergunta?', 'Opção 1'];
                     } else if (content.length === 1) {
-                         nodes[nodeId].content = [content[0], 'Opção 1'];
+                        nodes[nodeId].content = [content[0], 'Opção 1'];
                     }
                     updateMultipleChoiceConnectors(nodeEl, nodes[nodeId].content.length - 1);
                 }
@@ -839,25 +850,48 @@
                 // Remove conectores de saída existentes para redesenhar
                 nodeEl.querySelectorAll('.connector.output').forEach(c => c.remove());
                 
-                const nodeContentEl = nodeEl.querySelector('.node-content');
-                // É necessário ter o node no DOM para que offsetHeight funcione
-                const headerHeight = nodeEl.querySelector('.node-header').offsetHeight;
-                const nodeHeight = nodeEl.offsetHeight; // Altura total do nó
-                
-                // Calcular o espaço disponível para os conectores dentro do nó,
-                // excluindo o cabeçalho e a margem inferior (se houver)
-                const availableHeight = nodeHeight - headerHeight;
-                const spacing = availableHeight / (count + 1); // Divide o espaço pelo número de conectores + 1 para margem superior e inferior
+                // Força um reflow para garantir que offsetHeight seja preciso
+                nodeEl.offsetHeight; 
 
-                for (let i = 0; i < count; i++) {
+                const headerHeight = nodeEl.querySelector('.node-header').offsetHeight;
+                const nodeContentEl = nodeEl.querySelector('.node-content');
+                const contentPaddingTop = parseFloat(window.getComputedStyle(nodeContentEl).paddingTop);
+                const contentPaddingBottom = parseFloat(window.getComputedStyle(nodeContentEl).paddingBottom);
+                const buttonsContainerHeight = nodeEl.querySelector('#buttons-container').offsetHeight;
+                const addBtnHeight = nodeEl.querySelector('.add-btn') ? nodeEl.querySelector('.add-btn').offsetHeight : 0;
+                const addBtnMarginTop = nodeEl.querySelector('.add-btn') ? parseFloat(window.getComputedStyle(nodeEl.querySelector('.add-btn')).marginTop) : 0;
+                
+                // Calcula a altura da área de conteúdo (texto da pergunta + opções + botão adicionar)
+                // Subtrai 8px para o gap entre os elementos
+                const contentAreaHeight = nodeEl.querySelector('textarea').offsetHeight + buttonsContainerHeight + addBtnHeight + addBtnMarginTop + 8;
+
+
+                // A altura total disponível para os conectores é a altura do nó menos a altura do cabeçalho
+                // E também menos o padding superior e inferior do node-content, e talvez a altura da textarea
+                // O objetivo é distribuir os conectores pelas opções.
+
+                // Vamos calcular a posição dos conectores relativos ao topo do `node-content`
+                // A altura de cada opção div é dinâmica. Precisamos somar as alturas das opções.
+                let currentY = headerHeight + contentPaddingTop; // Começa após o cabeçalho e o padding superior do conteúdo
+                const questionTextarea = nodeEl.querySelector('.node-content > textarea');
+                if (questionTextarea) {
+                    currentY += questionTextarea.offsetHeight + 8; // Altura da textarea + gap
+                }
+                
+                nodeEl.querySelectorAll('.button-option').forEach((optionDiv, i) => {
                     const connector = document.createElement('div');
                     connector.className = 'connector output';
                     connector.dataset.choice = i; // Armazena o índice da opção
-                    // Posiciona o conector dentro da área de conteúdo
-                    connector.style.top = `${headerHeight + (spacing * (i + 1))}px`;
+                    
+                    // Posição vertical do conector: centro da div da opção
+                    // currentY é o topo da div da opção. Add half of optionDiv.offsetHeight to center it.
+                    connector.style.top = `${currentY + optionDiv.offsetHeight / 2}px`;
                     connector.style.transform = 'translateY(-50%)'; // Centraliza verticalmente
                     nodeEl.appendChild(connector);
-                }
+
+                    currentY += optionDiv.offsetHeight + 8; // Avança para o próximo item (+ gap)
+                });
+
                 setupNodeEventListeners(nodeEl); // Re-adiciona listeners para os novos conectores
                 redrawAllConnections(); // Redesenha todas as conexões para atualizar as linhas
             }
@@ -883,7 +917,8 @@
                 }
                 // Adiciona listeners para remover botões de opção
                 nodeEl.querySelectorAll('.remove-btn').forEach(btn => {
-                    btn.onclick = () => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation(); // Prevent node drag from starting
                         const node = nodes[nodeEl.id];
                         const optionDiv = btn.closest('.button-option');
                         const indexToRemove = parseInt(optionDiv.dataset.index, 10);
@@ -918,18 +953,49 @@
                             if (inputs.length > 0) newContent.push(inputs[0].value);
                             if (inputs.length > 1) newContent.push(inputs[1].value);
                         } else if (nodeEl.dataset.type === 'delay') {
-                             const delayInput = nodeEl.querySelector('input[type="number"]');
-                             if (delayInput) newContent[0] = delayInput.value;
+                            const delayInput = nodeEl.querySelector('input[type="number"]');
+                            if (delayInput) newContent[0] = delayInput.value;
                         }
                         nodes[nodeEl.id].content = newContent;
                         saveState();
                     });
+                    // Stop propagation for click events on inputs/textareas to prevent node drag
+                    input.addEventListener('mousedown', (e) => e.stopPropagation());
                 });
+
+                // Adiciona listener para o botão de deletar nó
+                const deleteBtn = nodeEl.querySelector('.delete-node-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevents node selection/drag from starting
+                        showConfirmModal(
+                            'Excluir Bloco?',
+                            `Tem certeza que deseja excluir o bloco "${nodes[nodeEl.id].el.querySelector('.node-header').textContent.trim().replace('🗑️', '').trim()}"?`,
+                            () => deleteNode(nodeEl.id)
+                        );
+                    });
+                }
+
+
                 // Adiciona listeners para os conectores
                 nodeEl.querySelectorAll('.connector').forEach(c => {
                     c.addEventListener('mousedown', (e) => {
                         e.stopPropagation(); // Previne o drag do nó ou o pan do canvas
-                        handleConnectorClick(nodeEl.id, c);
+                        handleConnectorClick(nodeEl.id, c, e); // Passa o evento para a função
+                    });
+                    // Adiciona listener para 'mouseover' para destacar o conector de entrada
+                    c.addEventListener('mouseover', () => {
+                        if (isConnecting && c.classList.contains('input') && connectionStart.nodeId !== nodeEl.id) {
+                            c.classList.add('highlight-target');
+                            hoveredInputConnector = c;
+                        }
+                    });
+                    // Remove destaque ao sair do conector
+                    c.addEventListener('mouseout', () => {
+                        if (hoveredInputConnector) {
+                            hoveredInputConnector.classList.remove('highlight-target');
+                            hoveredInputConnector = null;
+                        }
                     });
                 });
             }
@@ -944,10 +1010,8 @@
 
                 const onMouseMove = (e) => {
                     if (!isDraggingNode) return;
-                    e.preventDefault(); // Previne o comportamento de arraste padrão do navegador
+                    e.preventDefault(); 
                     // Calcula a nova posição do nó ajustando para o pan e zoom do canvas
-                    // Usamos flowCanvas.getBoundingClientRect() para obter a posição transformada do canvas
-                    // e depois dividimos por pan.scale para obter as coordenadas no sistema de referência do flowCanvas.
                     const newX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - dragOffsetX;
                     const newY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - dragOffsetY;
                     nodeEl.style.left = `${newX}px`;
@@ -966,14 +1030,14 @@
                 };
 
                 nodeEl.addEventListener('mousedown', (e) => {
-                    // Verifica se o clique foi em um input, textarea ou conector.
+                    // Verifica se o clique foi em um input, textarea ou conector ou botão de deletar.
                     // Se sim, permite a interação nativa e não inicia o arraste do nó.
-                    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector')) {
+                    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector') || e.target.classList.contains('delete-node-btn')) {
                         e.stopPropagation(); // Impede que o evento propague para o nó e para o canvas (para não iniciar pan)
                         return; // Sai da função, não inicia o arraste do nó
                     }
                     
-                    e.preventDefault(); // Agora, este preventDefault só é chamado se for um arraste do nó (não input/connector)
+                    e.preventDefault(); // Agora, este preventDefault só é chamado se for um arraste do nó (não input/connector/delete button)
                                         // Isso previne o "ghosting" nativo do navegador.
 
                     selectNode(nodeEl.id); // Seleciona o nó clicado
@@ -1037,32 +1101,41 @@
                 saveState(); // Salva o estado atual
             }
 
-            // Adiciona listener para a tecla 'Delete' para excluir o nó selecionado
+            // Adiciona listener para a tecla 'Delete' ou 'Backspace' para excluir o nó selecionado
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Delete' && selectedNodeId) {
+                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {
+                    // Prevent default behavior if on an input/textarea inside the node
+                    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+                        return;
+                    }
                     showConfirmModal(
                         'Excluir Bloco?',
-                        `Tem certeza que deseja excluir o bloco "${nodes[selectedNodeId].el.querySelector('.node-header').textContent.trim()}"?`,
+                        `Tem certeza que deseja excluir o bloco "${nodes[selectedNodeId].el.querySelector('.node-header').textContent.trim().replace('🗑️', '').trim()}"?`,
                         () => deleteNode(selectedNodeId)
                     );
                 }
             });
 
-            let currentTempLine = null; // Usado para desenhar a linha de conexão temporária
-
             /**
              * Lida com o clique em um conector para iniciar ou finalizar uma conexão.
              * @param {string} nodeId - O ID do nó ao qual o conector pertence.
              * @param {HTMLElement} connector - O elemento do conector clicado.
+             * @param {MouseEvent} e - O evento do mouse.
              */
-            function handleConnectorClick(nodeId, connector) {
-                e.preventDefault(); // Previne o comportamento padrão (ex: arrastar texto ou imagens dentro do conector)
-                e.stopPropagation(); // Impede que o clique no conector propague para o nó pai ou para o canvas
+            function handleConnectorClick(nodeId, connector, e) {
+                e.preventDefault(); 
+                e.stopPropagation(); 
 
                 if (isConnecting) {
                     // Se já estiver conectando, tenta finalizar a conexão
                     // Apenas conecta se o alvo for um conector de entrada válido e de um nó diferente
                     if (connector.classList.contains('input') && connectionStart.nodeId !== nodeId) {
+                        // Remove qualquer conexão existente que saia da mesma origem/escolha e aponte para qualquer lugar
+                        connections = connections.filter(c => !(c.from === connectionStart.nodeId && c.choice === connectionStart.choice));
+
+                        // Remove qualquer conexão existente que aponte para o mesmo destino de entrada
+                        connections = connections.filter(c => !(c.to === nodeId));
+
                         createConnection(connectionStart.nodeId, nodeId, connectionStart.choice);
                     }
                     resetConnectionState(); // Sempre reseta o estado da conexão após uma tentativa (bem-sucedida ou não)
@@ -1074,19 +1147,43 @@
                             nodeId: nodeId,
                             choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
                         };
-                        currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Use path for bezier
                         currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
                         currentTempLine.setAttribute('stroke-width', '2'); // Thin line
-                        currentTempLine.setAttribute('marker-end', 'url(#arrowhead)'); // Adiciona ponta de seta
+                        currentTempLine.setAttribute('fill', 'none'); // No fill for lines
                         svgLayer.appendChild(currentTempLine);
                         const startPos = getConnectorPosition(connector);
-                        currentTempLine.setAttribute('x1', startPos.x);
-                        currentTempLine.setAttribute('y1', startPos.y);
+                        currentTempLine.setAttribute('d', `M ${startPos.x} ${startPos.y} L ${startPos.x} ${startPos.y}`); // Initial straight line
+                        
                         // Adiciona listeners globais para arrastar a linha temporária
                         document.addEventListener('mousemove', onDrawingConnection);
                         document.addEventListener('mouseup', resetConnectionState); // Listener global para soltar em qualquer lugar
                     }
                 }
+            }
+
+            /**
+             * Calcula o caminho SVG para uma curva de Bézier entre dois pontos.
+             * @param {number} x1 - X inicial.
+             * @param {number} y1 - Y inicial.
+             * @param {number} x2 - X final.
+             * @param {number} y2 - Y final.
+             * @returns {string} O atributo 'd' para o caminho SVG.
+             */
+            function getBezierPath(x1, y1, x2, y2) {
+                const dx = Math.abs(x2 - x1) * 0.5; // Ajuste para controlar a "curvatura"
+                let cp1x = x1 + dx;
+                let cp1y = y1;
+                let cp2x = x2 - dx;
+                let cp2y = y2;
+
+                // Adjust control points for smoother curves when moving backwards (x1 > x2)
+                if (x1 > x2) {
+                    cp1x = x1 + 50; // Force bend outwards
+                    cp2x = x2 - 50; // Force bend outwards
+                }
+
+                return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
             }
 
             /**
@@ -1096,8 +1193,9 @@
             function onDrawingConnection(e) {
                 if (!currentTempLine) return; // Garante que a linha temporária existe
                 const coords = toCanvasCoords(e); // Converte para coordenadas do canvas (não transformado)
-                currentTempLine.setAttribute('x2', coords.x);
-                currentTempLine.setAttribute('y2', coords.y);
+                const startX = parseFloat(currentTempLine.getAttribute('d').split(' ')[1]);
+                const startY = parseFloat(currentTempLine.getAttribute('d').split(' ')[2]);
+                currentTempLine.setAttribute('d', getBezierPath(startX, startY, coords.x, coords.y));
 
                 // Lógica de destaque do conector de entrada alvo
                 if (hoveredInputConnector) {
@@ -1110,7 +1208,7 @@
                 if (targetElement && targetElement.classList.contains('connector') && targetElement.classList.contains('input')) {
                     const targetNodeId = targetElement.closest('.flow-node').id;
                     // Certifica-se de que não estamos sobre o nó de origem da conexão
-                    if (targetNodeId !== connectionStart.nodeId) { 
+                    if (targetNodeId !== connectionStart.nodeId) {  
                         hoveredInputConnector = targetElement;
                         hoveredInputConnector.classList.add('highlight-target');
                     }
@@ -1143,23 +1241,6 @@
              * @param {string|null} choice - Escolha da saída (para nós de pergunta/múltipla escolha).
              */
             function createConnection(fromId, toId, choice = null) {
-                // Remove conexão existente da mesma saída para evitar múltiplas conexões da mesma origem/escolha
-                let existingConnectionIndex = -1;
-                if (choice !== null) { // Para saídas de pergunta/múltipla escolha
-                    existingConnectionIndex = connections.findIndex(c => c.from === fromId && c.choice === choice);
-                } else { // Para nós com uma única saída
-                    existingConnectionIndex = connections.findIndex(c => c.from === fromId && c.choice === null);
-                }
-
-                if (existingConnectionIndex !== -1) {
-                    const oldConn = connections[existingConnectionIndex];
-                    if (oldConn.lineEl) { // Remove o elemento da linha SVG antiga
-                        oldConn.lineEl.remove();
-                    }
-                    connections.splice(existingConnectionIndex, 1); // Remove do array
-                }
-
-                // Adiciona a nova conexão
                 const newConnection = { from: fromId, to: toId, choice, lineEl: null }; // lineEl será definido em redraw
                 connections.push(newConnection);
                 redrawAllConnections(); // Redesenha todas as linhas para incluir a nova
@@ -1198,12 +1279,7 @@
                 const startPos = getConnectorPosition(fromConnector);
                 const endPos = getConnectorPosition(toConnector);
 
-                // As coordenadas já estão no espaço do flowCanvas (não transformado),
-                // pois o svgLayer é filho e herda o transform.
-                conn.lineEl.setAttribute('x1', startPos.x);
-                conn.lineEl.setAttribute('y1', startPos.y);
-                conn.lineEl.setAttribute('x2', endPos.x);
-                conn.lineEl.setAttribute('y2', endPos.y);
+                conn.lineEl.setAttribute('d', getBezierPath(startPos.x, startPos.y, endPos.x, endPos.y));
             }
 
             /**
@@ -1226,26 +1302,20 @@
                 // This ensures we only attempt to draw valid connections and clean up old ones.
                 connections = connections.filter(conn => nodes[conn.from] && nodes[conn.to]);
 
-                // Preserva a definição da ponta de seta
-                const defs = svgLayer.querySelector('defs');
-                // Limpa apenas as linhas, mantendo o <defs>
+                // Limpa apenas as linhas, mantendo o <defs> se houver.
+                // No nosso caso, removemos o <defs> de marcador de seta, então apenas removemos paths.
                 Array.from(svgLayer.children).forEach(child => {
-                    if (child.tagName === 'line') {
+                    if (child.tagName === 'path') { // Linhas são paths agora
                         child.remove();
                     }
                 });
-                if (!defs) { // Se por algum motivo o defs sumiu, recria
-                     const newDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                     newDefs.innerHTML = `<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e94560" /></marker>`;
-                     svgLayer.appendChild(newDefs);
-                }
 
                 connections.forEach(conn => {
                     // At this point, we are sure nodes[conn.from] and nodes[conn.to] exist due to the filter above.
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Create a path element
                     line.setAttribute('stroke', '#e94560'); // Neon red
                     line.setAttribute('stroke-width', '2'); // Thin line
-                    line.setAttribute('marker-end', 'url(#arrowhead)'); // Adiciona ponta de seta
+                    line.setAttribute('fill', 'none'); // No fill for lines
                     conn.lineEl = line; // Armazena a referência ao elemento da linha
                     svgLayer.appendChild(line);
                     updateConnectionLine(conn); // Atualiza a posição da nova linha
@@ -1317,15 +1387,8 @@
                         child.remove();
                     }
                 });
-                // Garante que a camada SVG e a definição da ponta de seta estejam presentes
-                const defs = svgLayer.querySelector('defs');
-                svgLayer.innerHTML = ''; 
-                if (defs) svgLayer.appendChild(defs);
-                else { // Se o defs sumiu, recria.
-                    const newDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                    newDefs.innerHTML = `<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e94560" /></marker>`;
-                    svgLayer.appendChild(newDefs);
-                }
+                // Limpa o SVG (todas as linhas)
+                svgLayer.innerHTML = '';
             }
 
             /**
@@ -1455,7 +1518,12 @@
                     choices.forEach((choiceText, index) => {
                         const button = document.createElement('button');
                         button.className = 'choice-button';
-                        button.textContent = choiceText;
+                        // Replace flowVariables in choiceText
+                        let processedChoiceText = choiceText;
+                        for (const key in flowVariables) {
+                            processedChoiceText = processedChoiceText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
+                        }
+                        button.textContent = processedChoiceText;
                         button.onclick = () => {
                             choiceContainer.remove(); // Remove os botões após a escolha
                             resolve(index); // Resolve com o índice da escolha
@@ -1474,7 +1542,12 @@
              */
             function waitForUserInput(promptText) {
                 return new Promise(resolve => {
-                    addMessage(promptText, "received"); // Mostra a pergunta do bot
+                    // Replace flowVariables in promptText
+                    let processedPromptText = promptText;
+                    for (const key in flowVariables) {
+                        processedPromptText = processedPromptText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
+                    }
+                    addMessage(processedPromptText, "received"); // Mostra a pergunta do bot
 
                     const inputContainer = document.createElement('div');
                     inputContainer.className = 'user-input-container';
@@ -1519,6 +1592,15 @@
                 }
 
                 try {
+                    // Replace variables in node content before processing
+                    let processedContent = currentNode.content.map(c => {
+                        let text = c;
+                        for (const key in flowVariables) {
+                            text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
+                        }
+                        return text;
+                    });
+
                     switch (currentNode.type) {
                         case 'start':
                             // Encontra a próxima conexão do nó de início
@@ -1531,7 +1613,7 @@
                             break;
 
                         case 'message':
-                            addMessage(currentNode.content[0], "received");
+                            addMessage(processedContent[0], "received");
                             await new Promise(r => setTimeout(r, 500)); // Pequeno atraso para "leitura"
                             // Encontra a próxima conexão e continua
                             const msgConnection = connections.find(c => c.from === currentNode.id);
@@ -1540,7 +1622,7 @@
                             break;
 
                         case 'image':
-                            addMessage("Enviando imagem...", "received", currentNode.content[0]);
+                            addMessage("Enviando imagem...", "received", processedContent[0]);
                             await new Promise(r => setTimeout(r, 1000)); // Pequeno atraso para "carregar"
                             const imgConnection = connections.find(c => c.from === currentNode.id);
                             if (imgConnection) await simulateFlow(imgConnection.to);
@@ -1548,7 +1630,7 @@
                             break;
 
                         case 'question':
-                            const questionText = currentNode.content[0];
+                            const questionText = processedContent[0];
                             const choiceSelected = await waitForUserChoice(['Sim', 'Não']);
                             addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent'); // Resposta do utilizador
 
@@ -1560,8 +1642,8 @@
                             break;
 
                         case 'multipleChoice':
-                            const mcQuestionText = currentNode.content[0];
-                            const mcOptions = currentNode.content.slice(1);
+                            const mcQuestionText = processedContent[0];
+                            const mcOptions = processedContent.slice(1);
                             
                             addMessage(mcQuestionText, "received");
                             const mcChoiceIndex = await waitForUserChoice(mcOptions);
@@ -1574,8 +1656,8 @@
                             break;
 
                         case 'userInput':
-                            const inputPrompt = currentNode.content[0];
-                            const variableName = currentNode.content[1] || 'user_input'; // Default variable name
+                            const inputPrompt = processedContent[0];
+                            const variableName = processedContent[1] || 'user_input'; // Default variable name
                             const userInput = await waitForUserInput(inputPrompt);
                             addMessage(userInput, 'sent'); // Mostra a entrada do utilizador
                             flowVariables[variableName] = userInput; // Armazena a entrada
@@ -1586,7 +1668,7 @@
                             break;
 
                         case 'delay':
-                            const delayMs = parseInt(currentNode.content[0] || '1500', 10);
+                            const delayMs = parseInt(processedContent[0] || '1500', 10);
                             const indicator = addTypingIndicator();
                             await new Promise(r => setTimeout(r, delayMs));
                             removeTypingIndicator(indicator);
@@ -1597,8 +1679,8 @@
                             break;
 
                         case 'cta':
-                            const ctaText = currentNode.content[0] || 'Visitar Link';
-                            const ctaUrl = currentNode.content[1] || '#';
+                            const ctaText = processedContent[0] || 'Visitar Link';
+                            const ctaUrl = processedContent[1] || '#';
                             const ctaContainer = document.createElement('div');
                             ctaContainer.className = 'cta-button-container';
                             const ctaButton = document.createElement('a');

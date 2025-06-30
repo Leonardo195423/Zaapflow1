@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flow Builder PRO - Chat Interativo</title>
-    <!-- Usando a biblioteca de ícones Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- ESTILOS GERAIS E SETUP --- */
@@ -255,7 +254,6 @@
 <body>
 
     <div class="app-container">
-        <!-- PAINEL DE BLOCOS (ESQUERDA) -->
         <div id="side-panel" class="panel">
             <div class="panel-header"><i class="fas fa-sitemap"></i> Blocos do Fluxo</div>
             <div class="node-template" draggable="true" data-type="message">
@@ -290,14 +288,12 @@
             </div>
         </div>
 
-        <!-- CANVAS (CENTRO) -->
         <div id="canvas-container">
             <div id="flow-canvas">
                 <svg id="svg-layer"></svg>
             </div>
         </div>
 
-        <!-- PRÉ-VISUALIZAÇÃO (DIREITA) -->
         <div id="preview-panel" class="panel">
              <div class="panel-header"><i class="fas fa-mobile-alt"></i> Pré-visualização</div>
             <div class="mobile-preview">
@@ -406,7 +402,7 @@
                 case 'cta': headerText = 'Botão Final'; headerIcon = 'fa-rocket'; contentHtml = `<textarea>${content[0] || 'Comprar Agora'}</textarea><textarea placeholder="URL do Link">${content[1] || ''}</textarea>`; hasOutput = false; break;
                 case 'multipleChoice':
                     headerText = 'Múltiplas Escolhas'; headerIcon = 'fa-check-double';
-                    let buttonsHtml = (content.slice(1) || ['Opção 1']).map((text, i) =>
+                    let buttonsHtml = (content.slice(1).length > 0 ? content.slice(1) : ['Opção 1']).map((text, i) =>
                         `<div class="button-option" data-index="${i}"><input type="text" value="${text}"><i class="fas fa-times remove-btn"></i></div>`
                     ).join('');
                     contentHtml = `<textarea placeholder="Texto da pergunta">${content[0] || ''}</textarea><div id="buttons-container">${buttonsHtml}</div><button class="add-btn"><i class="fas fa-plus"></i> Adicionar Opção</button>`;
@@ -453,33 +449,33 @@
         }
 
         function setupNodeEventListeners(nodeEl) {
-            // ... (código existente)
             const addBtn = nodeEl.querySelector('.add-btn');
             if (addBtn) {
-                addBtn.addEventListener('click', () => {
+                addBtn.onclick = () => { // Use onclick to prevent multiple bindings
                     const node = nodes[nodeEl.id];
-                    node.content.push(`Opção ${node.content.length}`);
+                    const newOptionText = `Opção ${node.content.length}`;
+                    node.content.push(newOptionText);
                     const newIndex = node.content.length - 2;
                     const container = nodeEl.querySelector('#buttons-container');
-                    container.insertAdjacentHTML('beforeend', `<div class="button-option" data-index="${newIndex}"><input type="text" value="Opção ${newIndex + 2}"><i class="fas fa-times remove-btn"></i></div>`);
+                    container.insertAdjacentHTML('beforeend', `<div class="button-option" data-index="${newIndex}"><input type="text" value="${newOptionText}"><i class="fas fa-times remove-btn"></i></div>`);
                     updateMultipleChoiceConnectors(nodeEl, node.content.length - 1);
-                    setupNodeEventListeners(nodeEl); // Re-bind
+                    setupNodeEventListeners(nodeEl);
                     saveState();
-                });
+                };
             }
             nodeEl.querySelectorAll('.remove-btn').forEach(btn => {
-                btn.onclick = () => { // Use onclick to overwrite
+                btn.onclick = () => {
                     const node = nodes[nodeEl.id];
                     const optionDiv = btn.closest('.button-option');
                     const indexToRemove = parseInt(optionDiv.dataset.index, 10);
-                    // Remove by index from content array (index+1 because content[0] is the question)
                     node.content.splice(indexToRemove + 1, 1);
                     optionDiv.remove();
+                    // Re-index remaining options
+                    nodeEl.querySelectorAll('.button-option').forEach((div, i) => div.dataset.index = i);
                     updateMultipleChoiceConnectors(nodeEl, node.content.length - 1);
                     saveState();
                 };
             });
-            // ... (código existente)
              const inputs = nodeEl.querySelectorAll('textarea, input');
             inputs.forEach((input) => {
                  input.addEventListener('input', () => {
@@ -490,77 +486,51 @@
              nodeEl.querySelectorAll('.connector').forEach(c => c.addEventListener('mousedown', (e) => { e.stopPropagation(); handleConnectorClick(nodeEl.id, c); }));
         }
 
-        function makeNodeDraggable(nodeEl) { /* ...código idêntico... */ }
-        function selectNode(nodeId) { /* ...código idêntico... */ }
-        function deleteNode(nodeId) { /* ...código idêntico... */ }
-        function handleConnectorClick(nodeId, connector) { /* ...código idêntico... */ }
-        function onDrawingConnection(e) { /* ...código idêntico... */ }
-        function resetConnectionState() { /* ...código idêntico... */ }
-        function createConnection(fromId, toId, choice) { /* ...código idêntico... */ }
-        function getConnectorPosition(connectorEl) { /* ...código idêntico... */ }
-        function updateConnectionsForNode(nodeId) { /* ...código idêntico... */ }
-        function redrawAllConnections() { /* ...código idêntico... */ }
-        
-        // --- LÓGICA DE IMPORTAR / EXPORTAR ---
-        exportFlowBtn.addEventListener('click', () => {
-            const data = JSON.stringify({ nodes: Object.values(nodes).map(n => ({id:n.id, type:n.type, x:n.x, y:n.y, content: n.content})), connections, nodeIdCounter, pan }, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'flow.json'; a.click(); URL.revokeObjectURL(url);
-        });
-
-        importFlowBtn.addEventListener('click', () => importFileInput.click());
-        importFileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const data = JSON.parse(event.target.result);
-                    if (confirm('Isto irá substituir o fluxo atual. Tem a certeza?')) {
-                        resetCanvas();
-                        loadState(data);
-                    }
-                } catch (err) { alert('Erro ao ler o ficheiro. Verifique se é um ficheiro JSON válido.'); }
+        function makeNodeDraggable(nodeEl) {
+            let offsetX, offsetY;
+            const onMouseMove = (e) => {
+                const newCoords = toCanvasCoords({clientX: e.clientX - offsetX, clientY: e.clientY - offsetY});
+                nodeEl.style.left = `${newCoords.x}px`;
+                nodeEl.style.top = `${newCoords.y}px`;
+                nodes[nodeEl.id].x = newCoords.x;
+                nodes[nodeEl.id].y = newCoords.y;
+                updateConnectionsForNode(nodeEl.id);
             };
-            reader.readAsText(file);
-            e.target.value = ''; // Reset input
-        });
-
-        // --- LÓGICA DO CANVAS E ESTADO ---
-        function resetCanvas() {
-            nodes = {}; connections = []; nodeIdCounter = 0; selectedNodeId = null;
-            flowCanvas.innerHTML = '<svg id="svg-layer"></svg>'; // recria a camada svg
-        }
-
-        function saveState() {
-            const state = { nodes: Object.values(nodes).map(n => ({id:n.id, type:n.type, x:n.x, y:n.y, content: n.content})), connections, nodeIdCounter, pan };
-            localStorage.setItem('chatFlowBuilderState', JSON.stringify(state));
-        }
-
-        function loadState(data = null) {
-            const state = data || JSON.parse(localStorage.getItem('chatFlowBuilderState'));
-            if (!state) return;
-            
-            resetCanvas();
-            nodeIdCounter = state.nodeIdCounter;
-            pan = state.pan || { x: 0, y: 0, scale: 1 };
-            updateCanvasTransform();
-            
-            state.nodes.forEach(n => createNode(n.type, n.x, n.y, n.id, n.content));
-            connections = state.connections;
-            redrawAllConnections();
-        }
-        
-        clearFlowBtn.addEventListener('click', () => {
-            if (confirm('Tem a certeza que deseja apagar todo o fluxo?')) {
-                resetCanvas();
-                createNode('start', 50, 150, 'node-0', []);
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
                 saveState();
-            }
-        });
+            };
+            nodeEl.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector')) return;
+                selectNode(nodeEl.id);
+                const startCoords = toCanvasCoords(e);
+                offsetX = startCoords.x - nodes[nodeEl.id].x;
+                offsetY = startCoords.y - nodes[nodeEl.id].y;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+        function selectNode(nodeId) { if (selectedNodeId && nodes[selectedNodeId]) nodes[selectedNodeId].el.classList.remove('selected'); selectedNodeId = nodeId; if (nodes[selectedNodeId]) nodes[selectedNodeId].el.classList.add('selected');}
+        function deleteNode(nodeId) { connections = connections.filter(conn => conn.from !== nodeId && conn.to !== nodeId); nodes[nodeId].el.remove(); delete nodes[nodeId]; selectedNodeId = null; redrawAllConnections(); saveState(); }
+        function handleConnectorClick(nodeId, connector) { if (isConnecting) { if (connector.classList.contains('input') && connectionStart.nodeId !== nodeId) { createConnection(connectionStart.nodeId, nodeId, connectionStart.choice); } resetConnectionState(); } else { if (connector.classList.contains('output')) { isConnecting = true; connectionStart = { nodeId, choice: connector.dataset.choice || null }; tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line'); tempLine.setAttribute('stroke', 'var(--primary-accent)'); tempLine.setAttribute('stroke-width', '3'); tempLine.setAttribute('stroke-dasharray', '5,5'); svgLayer.appendChild(tempLine); const startPos = getConnectorPosition(connector); tempLine.setAttribute('x1', startPos.x); tempLine.setAttribute('y1', startPos.y); document.addEventListener('mousemove', onDrawingConnection); document.addEventListener('mouseup', () => resetConnectionState(), { once: true }); } } }
+        function onDrawingConnection(e) { if(!tempLine) return; const coords = toCanvasCoords(e); tempLine.setAttribute('x2', coords.x); tempLine.setAttribute('y2', coords.y); }
+        function resetConnectionState() { isConnecting = false; connectionStart = {}; if (tempLine) tempLine.remove(); tempLine = null; document.removeEventListener('mousemove', onDrawingConnection); }
+        function createConnection(fromId, toId, choice = null) { const existing = connections.findIndex(c => c.from === fromId && c.choice === choice); if (existing !== -1) connections.splice(existing, 1); connections.push({ from: fromId, to: toId, choice }); redrawAllConnections(); saveState(); }
+        function getConnectorPosition(connectorEl) { const nodeRect = connectorEl.closest('.flow-node').getBoundingClientRect(); const canvasRect = canvasContainer.getBoundingClientRect(); const connectorRect = connectorEl.getBoundingClientRect(); return { x: (nodeRect.left - canvasRect.left - pan.x) / pan.scale + connectorEl.offsetLeft + connectorEl.offsetWidth / 2, y: (nodeRect.top - canvasRect.top - pan.y) / pan.scale + connectorEl.offsetTop + connectorEl.offsetHeight / 2 }; }
+        function updateConnectionsForNode(nodeId) { connections.forEach(conn => { if (conn.from === nodeId || conn.to === nodeId) { const fromNode = nodes[conn.from], toNode = nodes[conn.to]; if (!fromNode || !toNode) return; const fromConnector = conn.choice !== null ? fromNode.el.querySelector(`.connector.output[data-choice="\${conn.choice}"]`) : fromNode.el.querySelector('.connector.output'); const toConnector = toNode.el.querySelector('.connector.input'); if (!fromConnector || !toConnector) return; const startPos = getConnectorPosition(fromConnector); const endPos = getConnectorPosition(toConnector); if(conn.lineEl) { conn.lineEl.setAttribute('x1', startPos.x); conn.lineEl.setAttribute('y1', startPos.y); conn.lineEl.setAttribute('x2', endPos.x); conn.lineEl.setAttribute('y2', endPos.y); } } }); }
+        function redrawAllConnections() { svgLayer.innerHTML = ''; connections.forEach(conn => { if (nodes[conn.from] && nodes[conn.to]) { const line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); line.setAttribute('stroke', 'var(--connector-color)'); line.setAttribute('stroke-width', '3'); conn.lineEl = line; svgLayer.appendChild(line); updateConnectionsForNode(conn.from); } }); }
         
-        function init() { loadState(); if (Object.keys(nodes).length === 0) createNode('start', 50, 150, 'node-0', []); }
+        // LÓGICA DE IMPORTAR / EXPORTAR / LIMPAR
+        exportFlowBtn.addEventListener('click', () => { const dataStr = JSON.stringify({ nodes: Object.values(nodes).map(n => ({id:n.id, type:n.type, x:n.x, y:n.y, content: n.content})), connections, nodeIdCounter, pan }, null, 2); const blob = new Blob([dataStr], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'flow.json'; a.click(); URL.revokeObjectURL(url); });
+        importFlowBtn.addEventListener('click', () => importFileInput.click());
+        importFileInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const data = JSON.parse(event.target.result); if (confirm('Isto irá substituir o fluxo atual. Tem a certeza?')) { loadState(data); } } catch (err) { alert('Erro ao ler o ficheiro.'); } }; reader.readAsText(file); e.target.value = ''; });
+        function resetCanvas() { nodes = {}; connections = []; selectedNodeId = null; flowCanvas.innerHTML = '<svg id="svg-layer"></svg>';}
+        function saveState() { const state = { nodes: Object.values(nodes).map(n=>({id:n.id, type:n.type, x:n.x, y:n.y, content:n.content})), connections, nodeIdCounter, pan }; localStorage.setItem('chatFlowBuilderState', JSON.stringify(state));}
+        function loadState(data = null) { const state = data || JSON.parse(localStorage.getItem('chatFlowBuilderState')); if (!state) return; resetCanvas(); nodeIdCounter = state.nodeIdCounter; pan = state.pan || {x:0, y:0, scale:1, isPanning:false, startX:0, startY:0}; updateCanvasTransform(); if (state.nodes) state.nodes.forEach(n => createNode(n.type, n.x, n.y, n.id, n.content)); connections = state.connections || []; redrawAllConnections(); }
+        clearFlowBtn.addEventListener('click', () => { if (confirm('Tem a certeza?')) { resetCanvas(); nodeIdCounter = 0; createNode('start', 50, 150, 'node-0'); saveState(); } });
+        
+        function init() { loadState(); if (Object.keys(nodes).length === 0) createNode('start', 50, 150, 'node-0'); }
         init();
     });
     </script>

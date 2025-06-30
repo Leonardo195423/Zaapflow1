@@ -31,7 +31,7 @@
             background-color: var(--bg-color);
             color: var(--text-light);
             overflow: hidden;
-            height: 100vh;
+            height: 100vh; /* Garante que o corpo ocupe toda a altura da viewport */
             display: flex;
         }
 
@@ -93,12 +93,16 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0; /* Impede que o cabeçalho encolha */
         }
         .panel-header i { margin-right: 10px; }
         #logout-button { background: none; border: none; color: var(--primary-accent); cursor: pointer; font-size: 1.2rem; }
         #logout-button:hover { color: var(--button-hover-dark); }
         
         /* --- PAINEL LATERAL DE BLOCOS --- */
+        #side-panel {
+            overflow-y: auto; /* Permite rolagem vertical */
+        }
         #side-panel .node-template {
             background-color: var(--canvas-color);
             border: 1px solid var(--border-color);
@@ -121,10 +125,11 @@
             text-align: center;
         }
         #side-panel .controls {
-            margin-top: auto;
+            margin-top: auto; /* Empurra os controles para o final do painel */
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
+            flex-shrink: 0; /* Impede que os controles encolham */
         }
         .control-btn {
             padding: 12px 10px;
@@ -392,6 +397,7 @@
             margin-top: 20px;
             padding-top: 15px;
             border-top: 1px solid var(--border-color);
+            flex-shrink: 0; /* Impede que as configurações do bot encolham */
         }
         .bot-settings .input-group {
             margin-bottom: 15px;
@@ -1151,13 +1157,23 @@
                 
                 if (targetConnector && targetConnector.closest('.flow-node').id !== connectionStart.nodeId) { // Ensure not connecting to itself
                     console.log("MouseUp on a valid and different input connector. Attempting to finalize connection.");
+                    
+                    const targetNodeId = targetConnector.closest('.flow-node').id;
+
+                    // Prevent connecting to 'start' node
+                    if (nodes[targetNodeId].type === 'start') {
+                        showAlertModal('Erro de Conexão', 'Nós do tipo "Início" não podem ter entradas.');
+                        resetConnectionState();
+                        return;
+                    }
+
                     // Remove any existing connection that starts from the same source output/choice
                     connections = connections.filter(c => !(c.from === connectionStart.nodeId && c.choice === connectionStart.choice));
 
                     // Remove any existing connection that points to the target input
-                    connections = connections.filter(c => !(c.to === targetConnector.closest('.flow-node').id));
+                    connections = connections.filter(c => !(c.to === targetNodeId));
                     
-                    createConnection(connectionStart.nodeId, targetConnector.closest('.flow-node').id, connectionStart.choice);
+                    createConnection(connectionStart.nodeId, targetNodeId, connectionStart.choice);
                 } else {
                     console.log("MouseUp not on a valid target connector or self-connecting. Resetting state.");
                 }
@@ -1175,44 +1191,52 @@
                 e.preventDefault(); 
                 e.stopPropagation(); 
 
+                // If a connection is already in progress, clicking another connector should reset it
                 if (isConnecting) {
-                    // If a connection is already in progress, clicking another connector should reset it
                     console.log("Attempted to start new connection while one was already active. Resetting existing attempt.");
                     resetConnectionState();
+                    // If the click was on an output connector, we can proceed to start a new connection
+                    if (connector.classList.contains('output')) {
+                        startNewConnection(nodeId, connector);
+                    }
+                    return;
                 }
 
                 // Start a new connection (only from output connectors)
                 if (connector.classList.contains('output')) {
-                    // Prevent connecting from 'end' node (new rule)
+                    // Prevent connecting from 'end' node
                     if (nodes[nodeId].type === 'end') {
                         showAlertModal('Erro de Conexão', 'Nós do tipo "Fim" não podem ter saídas.');
                         return;
                     }
-
-                    console.log(`Starting connection from node ${nodeId}, choice: ${connector.dataset.choice || 'default'}`);
-                    isConnecting = true;
-                    connectionStart = {
-                        nodeId: nodeId,
-                        choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
-                    };
-                    currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Use path for bezier
-                    currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
-                    currentTempLine.setAttribute('stroke-width', '2'); // Thin line
-                    currentTempLine.setAttribute('fill', 'none'); // No fill for lines
-                    svgLayer.appendChild(currentTempLine);
-                    const startPos = getConnectorPosition(connector);
-                    currentTempLine.setAttribute('d', `M ${startPos.x} ${startPos.y} L ${startPos.x} ${startPos.y}`); // Initial straight line
-                    
-                    document.addEventListener('mousemove', onDrawingConnection);
-                    // Attach the single global mouseup listener only when connection starts
-                    document.addEventListener('mouseup', handleGlobalMouseUp, { once: true });
-                }
-                   // Prevent connecting to 'start' node (new rule)
-                if (connector.classList.contains('input') && nodes[nodeId].type === 'start') {
-                    showAlertModal('Erro de Conexão', 'Nós do tipo "Início" não podem ter entradas.');
-                    resetConnectionState(); // Reset if an invalid connection attempt was made
+                    startNewConnection(nodeId, connector);
                 }
             }
+
+            /**
+             * Starts the process of drawing a new connection line.
+             * @param {string} nodeId - The ID of the starting node.
+             * @param {HTMLElement} connector - The output connector element.
+             */
+            function startNewConnection(nodeId, connector) {
+                console.log(`Starting connection from node ${nodeId}, choice: ${connector.dataset.choice || 'default'}`);
+                isConnecting = true;
+                connectionStart = {
+                    nodeId: nodeId,
+                    choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
+                };
+                currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Use path for bezier
+                currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
+                currentTempLine.setAttribute('stroke-width', '2'); // Thin line
+                currentTempLine.setAttribute('fill', 'none'); // No fill for lines
+                svgLayer.appendChild(currentTempLine);
+                const startPos = getConnectorPosition(connector);
+                currentTempLine.setAttribute('d', `M ${startPos.x} ${startPos.y} L ${startPos.x} ${startPos.y}`); // Initial straight line
+                
+                document.addEventListener('mousemove', onDrawingConnection);
+                document.addEventListener('mouseup', handleGlobalMouseUp); // Attach without {once:true}
+            }
+
 
             /**
              * Calculates the SVG path for a Bézier curve between two points.
@@ -1241,6 +1265,7 @@
             /**
              * Updates the position of the temporary line during connection drag and highlights target.
              * @param {MouseEvent} e - The mouse event.
+             * @returns {void}
              */
             function onDrawingConnection(e) {
                 if (!currentTempLine) return; // Ensure temporary line exists
@@ -1258,11 +1283,14 @@
                 // Check if mouse is over a valid input connector (not the original output connector)
                 const targetElement = document.elementFromPoint(e.clientX, e.clientY);
                 if (targetElement && targetElement.classList.contains('connector') && targetElement.classList.contains('input')) {
-                    const targetNodeId = targetElement.closest('.flow-node').id;
-                    // Ensure we are not over the source node of the connection AND not trying to connect to 'start' or 'end' input
-                    if (targetNodeId !== connectionStart.nodeId && nodes[targetNodeId].type !== 'start' && nodes[targetNodeId].type !== 'end') {  
-                        hoveredInputConnector = targetElement;
-                        hoveredInputConnector.classList.add('highlight-target');
+                    const targetNode = targetElement.closest('.flow-node');
+                    if (targetNode) {
+                        const targetNodeId = targetNode.id;
+                        // Ensure we are not over the source node of the connection AND not trying to connect to 'start' or 'end' input
+                        if (targetNodeId !== connectionStart.nodeId && nodes[targetNodeId].type !== 'start' && nodes[targetNodeId].type !== 'end') {  
+                            hoveredInputConnector = targetElement;
+                            hoveredInputConnector.classList.add('highlight-target');
+                        }
                     }
                 }
             }
@@ -1283,8 +1311,7 @@
                     hoveredInputConnector = null;
                 }
                 document.removeEventListener('mousemove', onDrawingConnection);
-                // The handleGlobalMouseUp listener should have { once: true } so it removes itself
-                // No need to explicitly remove it here.
+                document.removeEventListener('mouseup', handleGlobalMouseUp); // Explicitly remove
             }
 
             /**

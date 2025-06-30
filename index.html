@@ -578,7 +578,6 @@
             const previewChatBody = document.getElementById('preview-chat-body');
 
             let nodes = {}, connections = [], nodeIdCounter = 0, selectedNodeId = null;
-            let isConnecting = false, connectionStart = {}, currentTempLine = null, hoveredInputConnector = null;
             let pan = { x: 0, y: 0, scale: 1, isPanning: false, startX: 0, startY: 0 };
             let isDraggingTemplate = false;
 
@@ -645,13 +644,20 @@
                 isDraggingTemplate = false;
             });
 
-            // --- NODE/CONNECTION LOGIC ---
+            // --- CONNECTION LOGIC (REBUILT) ---
+            let isConnecting = false;
+            let connectionStart = {};
+            let currentTempLine = null;
+            let hoveredInputConnector = null;
+
             const getBezierPath = (x1, y1, x2, y2) => `M ${x1} ${y1} C ${x1 + Math.abs(x2 - x1) * 0.6} ${y1}, ${x2 - Math.abs(x2 - x1) * 0.6} ${y2}, ${x2} ${y2}`;
             const getConnectorPosition = el => {
                 const nodeEl = el.closest('.flow-node');
+                const canvasRect = flowCanvas.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
                 return {
-                    x: nodeEl.offsetLeft + el.offsetLeft + el.offsetWidth / 2,
-                    y: nodeEl.offsetTop + el.offsetTop + el.offsetHeight / 2
+                    x: (elRect.left + elRect.width / 2 - canvasRect.left) / pan.scale,
+                    y: (elRect.top + elRect.height / 2 - canvasRect.top) / pan.scale
                 };
             };
             const redrawAllConnections = () => {
@@ -670,47 +676,38 @@
                 });
             };
 
-            const handleConnectorMouseDown = (e, nodeId, connector) => {
+            const startConnection = (e, nodeId, connector) => {
                 e.stopPropagation();
-                if (!connector.classList.contains('output')) return;
                 isConnecting = true;
                 connectionStart = { nodeId, choice: connector.dataset.choice ?? null };
                 currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 currentTempLine.setAttribute('class', 'connection-line');
                 svgLayer.appendChild(currentTempLine);
+                document.addEventListener('mousemove', dragConnection);
+                document.addEventListener('mouseup', endConnection, { once: true });
             };
 
-            const handleGlobalMouseMove = (e) => {
+            const dragConnection = (e) => {
                 if (!isConnecting) return;
-                const fromConnector = nodes[connectionStart.nodeId].el.querySelector(connectionStart.choice != null ? `.connector.output[data-choice="${connectionStart.choice}"]` : '.connector.output:not([data-choice])');
-                const startPos = getConnectorPosition(fromConnector);
+                const startConnector = nodes[connectionStart.nodeId].el.querySelector(connectionStart.choice != null ? `.connector.output[data-choice="${connectionStart.choice}"]` : '.connector.output:not([data-choice])');
+                const startPos = getConnectorPosition(startConnector);
                 const mousePos = toCanvasCoords(e);
                 currentTempLine.setAttribute('d', getBezierPath(startPos.x, startPos.y, mousePos.x, mousePos.y));
                 
                 if (hoveredInputConnector) hoveredInputConnector.classList.remove('highlight-target');
                 hoveredInputConnector = null;
                 
-                const mouseCanvasX = mousePos.x;
-                const mouseCanvasY = mousePos.y;
-
-                for (const nodeId in nodes) {
-                    if (nodeId === connectionStart.nodeId) continue;
-                    const node = nodes[nodeId];
-                    const inputConnector = node.el.querySelector('.connector.input');
-                    if (inputConnector) {
-                        const connectorPos = getConnectorPosition(inputConnector);
-                        const distance = Math.sqrt(Math.pow(mouseCanvasX - connectorPos.x, 2) + Math.pow(mouseCanvasY - connectorPos.y, 2));
-                        if (distance < 10) { // 10px hit radius
-                            hoveredInputConnector = inputConnector;
-                            hoveredInputConnector.classList.add('highlight-target');
-                            return; // Found a target, no need to check others
-                        }
+                const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+                if (elementUnderMouse && elementUnderMouse.classList.contains('connector') && elementUnderMouse.classList.contains('input')) {
+                    const targetNodeId = elementUnderMouse.closest('.flow-node').id;
+                    if (targetNodeId !== connectionStart.nodeId) {
+                        hoveredInputConnector = elementUnderMouse;
+                        hoveredInputConnector.classList.add('highlight-target');
                     }
                 }
             };
-            
-            const handleGlobalMouseUp = (e) => {
-                if (!isConnecting) return;
+
+            const endConnection = (e) => {
                 if (hoveredInputConnector) {
                     const fromId = connectionStart.nodeId;
                     const toId = hoveredInputConnector.closest('.flow-node').id;
@@ -723,14 +720,12 @@
                 isConnecting = false;
                 currentTempLine?.remove();
                 currentTempLine = null;
-                hoveredInputConnector?.classList.remove('highlight-target');
+                if (hoveredInputConnector) hoveredInputConnector.classList.remove('highlight-target');
                 hoveredInputConnector = null;
+                document.removeEventListener('mousemove', dragConnection);
             };
 
-            // Attach persistent listeners to the window for robust event handling
-            window.addEventListener('mousemove', handleGlobalMouseMove);
-            window.addEventListener('mouseup', handleGlobalMouseUp);
-
+            // --- NODE CREATION AND MANAGEMENT ---
             function createNode(type, x, y, id = null, content = []) {
                 const nodeId = id || `node-${nodeIdCounter++}`;
                 const nodeEl = document.createElement('div');
@@ -819,7 +814,7 @@
                         saveState();
                     };
                 });
-                nodeEl.querySelectorAll('.connector').forEach(c => c.addEventListener('mousedown', e => handleConnectorMouseDown(e, nodeEl.id, c)));
+                nodeEl.querySelectorAll('.connector.output').forEach(c => c.addEventListener('mousedown', e => startConnection(e, nodeEl.id, c)));
             }
             function makeNodeDraggable(nodeEl) {
                 let dragOffsetX, dragOffsetY;

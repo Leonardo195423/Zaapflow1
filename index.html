@@ -547,12 +547,17 @@
         // --- LOGIN LOGIC ---
         const loginScreen = document.getElementById('login-screen');
         const appContainer = document.getElementById('app-container');
+        let flowBuilderInitialized = false; // Flag to prevent re-initialization
+
         document.getElementById('login-form').addEventListener('submit', (e) => {
             e.preventDefault();
             if (document.getElementById('username').value === 'admin' && document.getElementById('password').value === 'admin123') {
                 loginScreen.classList.add('hidden');
                 appContainer.classList.remove('hidden');
-                initFlowBuilder();
+                if (!flowBuilderInitialized) {
+                    initFlowBuilder();
+                    flowBuilderInitialized = true;
+                }
             } else {
                 const loginError = document.getElementById('login-error');
                 loginError.textContent = 'Utilizador ou senha inválidos.';
@@ -644,12 +649,16 @@
                 isDraggingTemplate = false;
             });
 
-            // --- CONNECTION LOGIC (REBUILT) ---
+            // --- CONNECTION LOGIC (CORRIGIDO) ---
             const connectionManager = {
                 isConnecting: false,
                 startInfo: null,
                 tempLine: null,
                 hoveredConnector: null,
+
+                // Bind event handlers to the object context
+                dragHandler: null,
+                endHandler: null,
 
                 start(e, nodeId, connector) {
                     e.stopPropagation();
@@ -658,53 +667,62 @@
                     this.tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     this.tempLine.setAttribute('class', 'connection-line');
                     svgLayer.appendChild(this.tempLine);
-                    document.addEventListener('mousemove', this.drag);
-                    document.addEventListener('mouseup', this.end);
+                    
+                    // Create bound handlers
+                    this.dragHandler = this.drag.bind(this);
+                    this.endHandler = this.end.bind(this);
+
+                    document.addEventListener('mousemove', this.dragHandler);
+                    document.addEventListener('mouseup', this.endHandler);
                 },
 
                 drag(e) {
-                    if (!connectionManager.isConnecting) return;
-                    const startConnector = nodes[connectionManager.startInfo.nodeId].el.querySelector(connectionManager.startInfo.choice != null ? `.connector.output[data-choice="${connectionManager.startInfo.choice}"]` : '.connector.output:not([data-choice])');
+                    if (!this.isConnecting) return;
+                    const startConnector = nodes[this.startInfo.nodeId].el.querySelector(this.startInfo.choice != null ? `.connector.output[data-choice="${this.startInfo.choice}"]` : '.connector.output:not([data-choice])');
                     const startPos = getConnectorPosition(startConnector);
                     const mousePos = toCanvasCoords(e);
-                    connectionManager.tempLine.setAttribute('d', getBezierPath(startPos.x, startPos.y, mousePos.x, mousePos.y));
+                    this.tempLine.setAttribute('d', getBezierPath(startPos.x, startPos.y, mousePos.x, mousePos.y));
                     
-                    if (connectionManager.hoveredConnector) connectionManager.hoveredConnector.classList.remove('highlight-target');
-                    connectionManager.hoveredConnector = null;
+                    if (this.hoveredConnector) this.hoveredConnector.classList.remove('highlight-target');
+                    this.hoveredConnector = null;
                     
                     const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
                     if (elementUnderMouse && elementUnderMouse.classList.contains('connector') && elementUnderMouse.classList.contains('input')) {
                         const targetNodeId = elementUnderMouse.closest('.flow-node').id;
-                        if (targetNodeId !== connectionManager.startInfo.nodeId) {
-                            connectionManager.hoveredConnector = elementUnderMouse;
-                            connectionManager.hoveredConnector.classList.add('highlight-target');
+                        if (targetNodeId !== this.startInfo.nodeId) {
+                            this.hoveredConnector = elementUnderMouse;
+                            this.hoveredConnector.classList.add('highlight-target');
                         }
                     }
                 },
 
                 end(e) {
-                    document.removeEventListener('mousemove', connectionManager.drag);
-                    if (connectionManager.hoveredConnector) {
-                        const fromId = connectionManager.startInfo.nodeId;
-                        const toId = connectionManager.hoveredConnector.closest('.flow-node').id;
-                        const choice = connectionManager.startInfo.choice;
+                    if (this.hoveredConnector) {
+                        const fromId = this.startInfo.nodeId;
+                        const toId = this.hoveredConnector.closest('.flow-node').id;
+                        const choice = this.startInfo.choice;
+                        // Remove any existing connection from the same output connector
                         connections = connections.filter(c => !(c.from === fromId && c.choice === choice));
                         connections.push({ from: fromId, to: toId, choice });
                         saveState();
                         redrawAllConnections();
                     }
-                    connectionManager.reset();
+                    this.reset();
                 },
                 
                 reset() {
+                    // Always remove the listeners
+                    document.removeEventListener('mousemove', this.dragHandler);
+                    document.removeEventListener('mouseup', this.endHandler);
+
                     this.isConnecting = false;
                     this.startInfo = null;
                     this.tempLine?.remove();
                     this.tempLine = null;
                     this.hoveredConnector?.classList.remove('highlight-target');
                     this.hoveredConnector = null;
-                    // Remove listener on end to ensure clean state
-                    document.removeEventListener('mouseup', this.end);
+                    this.dragHandler = null;
+                    this.endHandler = null;
                 }
             };
 
@@ -795,6 +813,13 @@
                 setupNodeEventListeners(nodeEl);
             };
             function setupNodeEventListeners(nodeEl) {
+                // Remove potential old listeners before adding new ones
+                nodeEl.querySelectorAll('.connector.output').forEach(c => {
+                    const new_c = c.cloneNode(true);
+                    c.parentNode.replaceChild(new_c, c);
+                    new_c.addEventListener('mousedown', e => connectionManager.start(e, nodeEl.id, new_c));
+                });
+
                 nodeEl.querySelector('.delete-node-btn')?.addEventListener('click', e => {
                     e.stopPropagation();
                     showConfirmModal('Excluir Bloco?', 'Tem certeza que deseja excluir este bloco?', () => deleteNode(nodeEl.id));
@@ -821,7 +846,6 @@
                         saveState();
                     };
                 });
-                nodeEl.querySelectorAll('.connector.output').forEach(c => c.addEventListener('mousedown', e => connectionManager.start(e, nodeEl.id, c)));
             }
             function makeNodeDraggable(nodeEl) {
                 let dragOffsetX, dragOffsetY;
@@ -1175,21 +1199,21 @@
                     });
                 `;
                 const finalHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${flowState.botSettings.name || 'ZAPFLOW Chat'}</title>
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-                    <style>${chatCss}</style></head><body>
-                    <div class="chat-container">
-                        <div class="chat-header">
-                            <img src="${flowState.botSettings.profilePic || 'https://placehold.co/45x45'}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
-                            <div class="contact-info">
-                                <div class="name">${flowState.botSettings.name || 'ZAPFLOW BOT'}</div>
-                                <div class="status">online</div>
+                        <title>${flowState.botSettings.name || 'ZAPFLOW Chat'}</title>
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+                        <style>${chatCss}</style></head><body>
+                        <div class="chat-container">
+                            <div class="chat-header">
+                                <img src="${flowState.botSettings.profilePic || 'https://placehold.co/45x45'}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
+                                <div class="contact-info">
+                                    <div class="name">${flowState.botSettings.name || 'ZAPFLOW BOT'}</div>
+                                    <div class="status">online</div>
+                                </div>
                             </div>
+                            <div class="chat-body" id="chat-body"></div>
                         </div>
-                        <div class="chat-body" id="chat-body"></div>
-                    </div>
-                    <script>${runnerJs}<\/script></body></html>`;
+                        <script>${runnerJs}<\/script></body></html>`;
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);

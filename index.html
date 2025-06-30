@@ -580,7 +580,7 @@
             let nodes = {}, connections = [], nodeIdCounter = 0, selectedNodeId = null;
             let isConnecting = false, connectionStart = {}, currentTempLine = null, hoveredInputConnector = null;
             let pan = { x: 0, y: 0, scale: 1, isPanning: false, startX: 0, startY: 0 };
-            let isDraggingTemplate = false; // Flag to prevent duplication bug
+            let isDraggingTemplate = false;
 
             // --- PAN AND ZOOM ---
             const updateCanvasTransform = () => {
@@ -634,7 +634,7 @@
             });
             canvasContainer.addEventListener('dragover', e => e.preventDefault());
             canvasContainer.addEventListener('drop', e => {
-                if (!isDraggingTemplate) return; // Only drop if dragging a template
+                if (!isDraggingTemplate) return;
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 const type = e.dataTransfer.getData('text/plain');

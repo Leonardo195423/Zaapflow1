@@ -1,1230 +1,408 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZAPFLOW - Chat Interativo</title>
+    <title>ZaapFlow - Construtor de Funil</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Biblioteca para as linhas de conexão -->
+    <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js"></script>
+
     <style>
         :root {
-            --bg-color: #1a1a2e;
-            --panel-color: #16213e;
-            --canvas-color: #0f1524;
-            --primary-accent: #e94560;
-            --secondary-accent: #4fc3f7;
-            --success-color: #25D366;
-            --warning-color: #f7b731;
-            --text-light: #e0e0e0;
-            --border-color: #2c3e50;
-            --shadow-color: rgba(0, 0, 0, 0.4);
-            --connector-color: #6c757d;
-            --button-hover-dark: #c33a50;
-            --button-hover-light: #6ad1fc;
+            --bg-main: #111111; --bg-secondary: #1C1C1C; --bg-tertiary: #2A2A2A;
+            --text-primary: #EAEAEA; --text-secondary: #A0A0A0; --border-color: #363636;
+            --accent-yellow: #FFD23F; --accent-yellow-dark: #F8B700;
+            --accent-yellow-glow: rgba(255, 210, 63, 0.5); --shadow-color: rgba(0, 0, 0, 0.5);
         }
-
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-light);
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-        }
-
-        .hidden { display: none !important; }
-
-        /* --- TELA DE LOGIN --- */
-        #login-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            background-image: url('https://i.ibb.co/B5CH90Vp/Chat-GPT-Image-29-de-jun-de-2025-23-12-16.png');
-            background-size: cover; background-position: center;
-            z-index: 1000;
-        }
-        #login-box {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            padding: 40px; border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: 100%; max-width: 400px; text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        #login-box h2 { font-size: 2.5rem; margin-bottom: 10px; color: #fff; }
-        #login-box p { color: #ccc; margin-bottom: 30px; }
-        .input-group { margin-bottom: 20px; text-align: left; }
-        .input-group label { display: block; margin-bottom: 8px; color: #ccc; }
-        .input-group input { width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #fff; font-size: 1rem; }
-        .input-group input:focus { outline: none; border-color: var(--primary-accent); }
-        #login-button { width: 100%; padding: 15px; background: var(--primary-accent); border: none; border-radius: 8px; color: #fff; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
-        #login-button:hover { background-color: var(--button-hover-dark); }
-        #login-error { color: #ff5555; margin-top: 15px; height: 20px; }
-
-        /* --- LAYOUT PRINCIPAL DA APLICAÇÃO --- */
-        .app-container {
-            display: grid;
-            grid-template-columns: 280px 1fr 420px;
-            width: 100%;
-            height: 100%;
-            gap: 10px;
-            padding: 10px;
-        }
-
-        .panel {
-            background-color: var(--panel-color);
-            border-radius: 12px;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 5px 0 15px var(--shadow-color);
-            z-index: 10;
-        }
-        .panel-header {
-            font-size: 1.4em;
-            font-weight: 700;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--primary-accent);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        .panel-header i { margin-right: 10px; }
-        #logout-button { background: none; border: none; color: var(--primary-accent); cursor: pointer; font-size: 1.2rem; }
-        #logout-button:hover { color: var(--button-hover-dark); }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-primary); }
+        .flow-canvas.drag-over { background-color: rgba(255, 210, 63, 0.05); }
         
-        /* --- PAINEL LATERAL DE BLOCOS --- */
-        #side-panel { overflow-y: auto; }
-        #side-panel .node-template {
-            background-color: var(--canvas-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 12px;
-            cursor: grab;
-            transition: background-color 0.3s, transform 0.2s;
-            font-weight: 500;
-            font-size: 0.95em;
-        }
-        #side-panel .node-template:hover {
-            background-color: #2c3e50;
-            transform: translateY(-2px);
-        }
-        #side-panel .node-template i {
-            margin-right: 10px;
-            color: var(--secondary-accent);
-            width: 20px;
-            text-align: center;
-        }
-        #side-panel .controls {
-            margin-top: auto;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        .control-btn {
-            padding: 12px 10px;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s, transform 0.2s;
-            font-size: 0.9em;
-        }
-        .control-btn:hover { transform: translateY(-2px); }
-        #run-flow-btn { background-color: var(--primary-accent); grid-column: 1 / -1; }
-        #run-flow-btn:hover { background-color: var(--button-hover-dark); }
-        #clear-flow-btn { background-color: #555; }
-        #clear-flow-btn:hover { background-color: #777; }
-        #download-html-btn { background-color: var(--success-color); }
-        #download-html-btn:hover { background-color: #128C7E; }
-        #import-flow-btn { background-color: var(--warning-color); }
-        #import-flow-btn:hover { background-color: #f7a000; }
-        #export-flow-btn { background-color: var(--secondary-accent); }
-        #export-flow-btn:hover { background-color: var(--button-hover-light); }
+        .neon-yellow-text { color: var(--accent-yellow); text-shadow: 0 0 5px var(--accent-yellow-glow), 0 0 10px var(--accent-yellow-glow); }
+        .neon-yellow-bar { background-color: var(--accent-yellow); box-shadow: 0 0 8px var(--accent-yellow-glow); }
         
-        /* --- CANVAS CENTRAL --- */
-        #canvas-container {
-            position: relative;
-            background-color: var(--canvas-color);
-            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
-            background-size: 20px 20px;
-            border-radius: 12px;
-            overflow: hidden;
-            cursor: grab;
+        .canvas-component {
+            position: absolute; cursor: grab; z-index: 10; width: 280px;
+            background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 8px; box-shadow: 0 10px 20px var(--shadow-color);
         }
-        #canvas-container:active { cursor: grabbing; }
+        .canvas-component:active { cursor: grabbing; z-index: 20; }
+        .component-header {
+            background-color: var(--bg-tertiary); border-top-left-radius: 7px;
+            border-top-right-radius: 7px; border-bottom: 1px solid var(--border-color);
+        }
+        .component-header .accent-bar { height: 3px; width: 100%; border-top-left-radius: 7px; border-top-right-radius: 7px; }
 
-        #flow-canvas {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            transform-origin: 0 0;
+        .connector-point {
+            position: absolute; top: 50%; transform: translateY(-50%); width: 16px; height: 16px;
+            background-color: var(--bg-tertiary); border: 2px solid var(--text-secondary);
+            border-radius: 50%; cursor: crosshair; z-index: 11; transition: all 0.2s ease;
         }
+        .connector-point:hover { border-color: var(--accent-yellow); transform: translateY(-50%) scale(1.2); }
+        .connector-point.input { left: -8px; }
+        .connector-point.output { right: -8px; }
+
+        .leader-line { z-index: 5; }
+        .component-controls { display: none; }
+        .canvas-component:hover .component-controls { display: flex; }
         
-        #svg-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7); z-index: 40; display: flex;
+            justify-content: center; align-items: center;
         }
-        .connection-line {
-            stroke: var(--primary-accent);
-            stroke-width: 2;
-            fill: none;
-            filter: drop-shadow(0 0 3px var(--primary-accent));
+        .modal-content {
+            background-color: var(--bg-secondary); padding: 24px; border-radius: 8px;
+            border: 1px solid var(--border-color); width: 90%; max-width: 500px;
         }
 
-        /* --- BLOCOS NO CANVAS --- */
-        .flow-node {
-            position: absolute;
-            background-color: var(--panel-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            width: 240px;
-            min-height: 80px;
-            box-shadow: 0 4px 12px var(--shadow-color);
-            cursor: move;
-            transition: box-shadow 0.3s, border-color 0.3s;
-            display: flex;
-            flex-direction: column;
-            z-index: 5;
-        }
-        .flow-node.selected {
-            border-color: var(--primary-accent);
-            box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
-            z-index: 6;
-        }
-        .flow-node.dragging { z-index: 999 !important; }
-
-        .node-header {
-            background-color: #2c3e50;
-            color: var(--text-light);
-            padding: 8px 10px;
-            font-weight: bold;
-            border-top-left-radius: 7px;
-            border-top-right-radius: 7px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .node-header i { margin-right: 8px; }
-        .delete-node-btn {
-            background: none;
-            border: none;
-            color: #ccc;
-            font-size: 1em;
-            cursor: pointer;
-            margin-left: 10px;
-            transition: color 0.2s;
-        }
-        .delete-node-btn:hover { color: var(--primary-accent); }
-
-        .node-content {
-            padding: 10px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .node-content textarea, .node-content input {
-            width: 100%;
-            background-color: var(--canvas-color);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            color: var(--text-light);
-            padding: 8px;
-            resize: vertical;
-        }
-        .node-content textarea { min-height: 40px; }
-        .node-content textarea:focus, .node-content input:focus {
-            outline: none;
-            border-color: var(--secondary-accent);
-        }
-        .node-content label {
-            font-size: 0.8em;
-            color: var(--text-light-muted, #aaa);
-            margin-bottom: -4px;
-        }
-        .flow-node[data-type="start"] { border-color: var(--success-color); }
-        .flow-node[data-type="start"] .node-header { background-color: #128C7E; }
-        .flow-node[data-type="end"] { border-color: #f7b731; }
-        .flow-node[data-type="end"] .node-header { background-color: #e09f25; }
-        .flow-node[data-type="question"], .flow-node[data-type="multipleChoice"] { border-color: var(--secondary-accent); }
-        .flow-node[data-type="question"] .node-header, .flow-node[data-type="multipleChoice"] .node-header { background-color: #3b5998; }
-        .flow-node[data-type="video"] { border-color: #c4302b; }
-        .flow-node[data-type="video"] .node-header { background-color: #a3241f; }
-        .flow-node[data-type="audio"] { border-color: #fd9843; }
-        .flow-node[data-type="audio"] .node-header { background-color: #e67e22; }
-        
-        .connector {
-            width: 16px; height: 16px;
-            background-color: #fff;
-            border: 2px solid var(--connector-color);
-            border-radius: 50%;
-            position: absolute;
-            cursor: crosshair;
-            transition: background-color 0.3s, border-color 0.3s;
-            z-index: 10;
-        }
-        .connector:hover { 
-            background-color: var(--primary-accent); 
-            border-color: var(--primary-accent);
-        }
-        .connector.highlight-target {
-            background-color: var(--secondary-accent) !important;
-            border-color: var(--primary-accent) !important;
-            box-shadow: 0 0 8px rgba(233, 69, 96, 0.7);
-        }
-        .connector.output { right: -8px; }
-        .connector.input { left: -8px; top: 50%; transform: translateY(-50%); }
-
-        .button-option { display: flex; align-items: center; gap: 5px; }
-        .button-option input { flex-grow: 1; }
-        .remove-btn { cursor: pointer; color: #e94560; }
-        .remove-btn:hover { color: var(--button-hover-dark); }
-        .add-btn {
-            background: none; border: 1px dashed var(--connector-color); color: var(--connector-color);
-            padding: 5px; border-radius: 4px; cursor: pointer; margin-top: 5px;
-        }
-        .add-btn:hover { background-color: rgba(255,255,255,0.05); }
-
-        /* --- PRÉ-VISUALIZAÇÃO --- */
-        #preview-panel { align-items: center; justify-content: center; }
-        .mobile-preview {
-            width: 100%; 
-            max-width: 380px; 
-            height: 95%; 
+        /* Estilos da Prévia */
+        #preview-chat-container {
             background-color: #e5ddd5;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden;
-        }
-        .chat-header {
-            background-color: #075E54; color: white; padding: 10px 15px; display: flex;
-            align-items: center; gap: 15px; flex-shrink: 0;
-        }
-        .chat-header img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
-        .chat-header .name { font-weight: bold; }
-        .chat-header .status { font-size: 0.8em; color: #d1d1d1; }
-        .chat-body {
-            flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column;
-            gap: 12px; background-color: #e5ddd5;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
         }
-        .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
-        .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
-        .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        .message .video-container {
-            position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;
-        }
-        .message .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .message audio { width: 100%; margin-top: 5px; }
-        .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
-        .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
-        .typing-indicator span:nth-child(2) { animation-delay: 0.1s; }
-        .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-        .choice-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 5px 10px; align-self: flex-end; }
-        .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: background-color 0.2s, color 0.2s; }
-        .choice-button:hover { background-color: #075E54; color: white; }
-        .cta-button-container { padding: 10px; align-self: stretch; }
-        .cta-button { background: linear-gradient(45deg, #25D366, #128C7E); color: white; text-align: center; text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px; border-radius: 30px; display: block; transition: transform 0.2s; }
-        .cta-button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-        .user-input-container { display: flex; gap: 5px; margin-top: 10px; align-self: stretch; }
-        .user-input-container input { flex-grow: 1; padding: 8px; border-radius: 20px; border: 1px solid #ccc; }
-        .user-input-container button { padding: 8px 15px; border-radius: 20px; border: none; background-color: #075E54; color: white; cursor: pointer; }
-
-        /* --- CUSTOM MODAL --- */
-        .custom-modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 2000;
-        }
-        .custom-modal {
-            background-color: var(--panel-color);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px var(--shadow-color);
-            max-width: 450px;
-            width: 90%;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-        .custom-modal h3 {
-            color: var(--primary-accent);
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-        .custom-modal p {
-            color: var(--text-light);
-            margin-bottom: 30px;
-            line-height: 1.5;
-        }
-        .custom-modal-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        .custom-modal-buttons button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.2s;
-        }
-        .custom-modal-buttons .confirm-btn {
-            background-color: var(--primary-accent);
-            color: white;
-        }
-        .custom-modal-buttons .confirm-btn:hover {
-            background-color: var(--button-hover-dark);
-            transform: translateY(-2px);
-        }
-        .custom-modal-buttons .cancel-btn {
-            background-color: #555;
-            color: white;
-        }
-        .custom-modal-buttons .cancel-btn:hover {
-            background-color: #777;
-            transform: translateY(-2px);
-        }
-
-        /* --- BOT SETTINGS --- */
-        .bot-settings {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid var(--border-color);
-            flex-shrink: 0;
-        }
-        .bot-settings .input-group {
-            margin-bottom: 15px;
-        }
+        #preview-chat-body::-webkit-scrollbar { width: 6px; }
+        #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
     </style>
 </head>
-<body>
+<body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="login-screen">
-        <div id="login-box">
-            <h2>Bem-vindo ao ZAPFLOW</h2>
-            <p>Faça login para aceder ao Flow Builder</p>
-            <form id="login-form">
-                <div class="input-group">
-                    <label for="username">Utilizador</label>
-                    <input type="text" id="username" value="admin" required>
-                </div>
-                <div class="input-group">
-                    <label for="password">Senha</label>
-                    <input type="password" id="password" value="admin123" required>
-                </div>
-                <div id="login-error"></div>
-                <button type="submit" id="login-button">Entrar</button>
-            </form>
+    <header class="bg-secondary shadow-md px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-2xl neon-yellow-text"></i>
+            <h1 class="text-xl font-bold text-primary">ZaapFlow</h1>
         </div>
-    </div>
+        <div class="text-lg font-semibold">Construtor de Funil</div>
+        <div></div>
+    </header>
 
-    <div id="app-container" class="app-container hidden">
-        <div id="side-panel" class="panel">
-            <div class="panel-header">
-                <span><i class="fas fa-sitemap"></i> Blocos do Fluxo</span>
-                <button id="logout-button" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
-            </div>
-            <div class="node-template" draggable="true" data-type="start"><i class="fas fa-flag-checkered"></i> Início do Fluxo</div>
-            <div class="node-template" draggable="true" data-type="message"><i class="fas fa-comment-dots"></i> Mensagem do Bot</div>
-            <div class="node-template" draggable="true" data-type="image"><i class="fas fa-image"></i> Imagem</div>
-            <div class="node-template" draggable="true" data-type="video"><i class="fas fa-video"></i> Vídeo</div>
-            <div class="node-template" draggable="true" data-type="audio"><i class="fas fa-volume-up"></i> Áudio</div>
-            <div class="node-template" draggable="true" data-type="question"><i class="fas fa-question-circle"></i> Pergunta (Sim/Não)</div>
-            <div class="node-template" draggable="true" data-type="multipleChoice"><i class="fas fa-check-double"></i> Múltiplas Escolhas</div>
-            <div class="node-template" draggable="true" data-type="userInput"><i class="fas fa-keyboard"></i> Entrada do Utilizador</div>
-            <div class="node-template" draggable="true" data-type="delay"><i class="fas fa-clock"></i> Atraso / Pausa</div>
-            <div class="node-template" draggable="true" data-type="cta"><i class="fas fa-rocket"></i> Botão Final (CTA)</div>
-            <div class="node-template" draggable="true" data-type="end"><i class="fas fa-stop-circle"></i> Fim do Fluxo</div>
-
-            <div class="bot-settings">
-                <div class="panel-header">
-                    <span><i class="fas fa-robot"></i> Configurações do Bot</span>
-                </div>
-                <div class="input-group">
-                    <label for="bot-name-input">Nome do Bot</label>
-                    <input type="text" id="bot-name-input" placeholder="Nome do Bot">
-                </div>
-                <div class="input-group">
-                    <label for="bot-profile-pic-input">URL da Foto de Perfil</label>
-                    <input type="text" id="bot-profile-pic-input" placeholder="https://exemplo.com/bot.png">
-                </div>
-            </div>
-
-            <div class="controls">
-                <button id="run-flow-btn" class="control-btn"><i class="fas fa-play"></i> Testar Fluxo</button>
-                <button id="import-flow-btn" class="control-btn"><i class="fas fa-upload"></i> Importar Fluxo</button>
-                <button id="export-flow-btn" class="control-btn"><i class="fas fa-download"></i> Exportar Fluxo</button>
-                <button id="clear-flow-btn" class="control-btn"><i class="fas fa-trash-alt"></i> Limpar</button>
-                <button id="download-html-btn" class="control-btn"><i class="fas fa-code"></i> Baixar HTML</button>
-                <input type="file" id="import-file-input" style="display: none;" accept=".json">
-            </div>
-        </div>
-
-        <div id="canvas-container">
-            <div id="flow-canvas">
-                <svg id="svg-layer"></svg>
-            </div>
-        </div>
-
-        <div id="preview-panel" class="panel">
-            <div class="panel-header"><i class="fas fa-mobile-alt"></i> Pré-visualização</div>
-            <div class="mobile-preview">
-                <div class="chat-header">
-                    <img id="preview-bot-avatar" src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Atendente">
-                    <div class="contact-info">
-                        <div id="preview-bot-name" class="name">ZAPFLOW BOT</div>
-                        <div class="status">online</div>
+    <div class="flex-grow grid grid-cols-12 overflow-hidden">
+        <aside class="col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
+            <div class="mb-6">
+                <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
+                <div class="space-y-2">
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="received-message">
+                        <i class="fas fa-comment-dots w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Recebida</span>
+                    </div>
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="sent-message">
+                        <i class="fas fa-paper-plane w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Enviada</span>
+                    </div>
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="image-message">
+                        <i class="fas fa-image w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Imagem</span>
                     </div>
                 </div>
-                <div class="chat-body" id="preview-chat-body"></div>
             </div>
-        </div>
+            <div>
+                <h3 class="font-semibold text-text-secondary mb-3">LÓGICA</h3>
+                <div class="space-y-2">
+                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="ask-question">
+                        <i class="fas fa-question-circle w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Pergunta com Botões</span>
+                    </div>
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="delay">
+                        <i class="fas fa-clock w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Esperar (Delay)</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="col-span-5 relative border-r border-border-color">
+            <div id="flow-canvas" class="w-full h-full"></div>
+        </main>
+
+        <aside class="col-span-4 bg-secondary p-4 flex flex-col">
+            <h2 class="text-lg font-bold mb-4 text-primary border-b border-border-color pb-2">Prévia ao Vivo</h2>
+            <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
+                 <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col">
+                 </div>
+            </div>
+        </aside>
     </div>
 
-    <div id="custom-modal-overlay" class="custom-modal-overlay hidden">
-        <div class="custom-modal">
-            <h3 id="modal-title"></h3>
-            <p id="modal-message"></p>
-            <div class="custom-modal-buttons">
-                <button id="modal-confirm-btn" class="confirm-btn">Confirmar</button>
-                <button id="modal-cancel-btn" class="cancel-btn">Cancelar</button>
+    <div id="edit-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title" class="text-lg font-bold mb-4">Editar Componente</h3>
+            <div id="modal-body"></div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="modal-cancel" class="px-4 py-2 rounded-md bg-tertiary hover:bg-opacity-70">Cancelar</button>
+                <button id="modal-save" class="px-4 py-2 rounded-md bg-accent-yellow text-black font-semibold hover:bg-accent-yellow-dark">Salvar</button>
             </div>
         </div>
     </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- MODAL LOGIC ---
-        const modalOverlay = document.getElementById('custom-modal-overlay');
-        const modalTitle = document.getElementById('modal-title');
-        const modalMessage = document.getElementById('modal-message');
-        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
-        let onConfirmCallback, onCancelCallback;
+        const flowCanvas = document.getElementById('flow-canvas');
+        const modal = document.getElementById('edit-modal');
+        let connections = [];
+        let currentDrawingLine = null;
+        let startElementForLine = null;
+        let elementToEdit = null;
 
-        function showConfirmModal(title, message, onConfirm, onCancel) {
-            modalTitle.textContent = title;
-            modalMessage.textContent = message;
-            onConfirmCallback = onConfirm;
-            onCancelCallback = onCancel;
-            modalCancelBtn.classList.remove('hidden');
-            modalOverlay.classList.remove('hidden');
-        }
-        modalConfirmBtn.onclick = () => {
-            modalOverlay.classList.add('hidden');
-            if (onConfirmCallback) onConfirmCallback();
+        const componentInfoMap = {
+            'received-message': { name: 'Mensagem Recebida', icon: 'fa-comment-dots', text: 'Olá! Escreva sua mensagem aqui.' },
+            'sent-message': { name: 'Mensagem Enviada', icon: 'fa-paper-plane', text: 'Esta é a minha resposta.' },
+            'ask-question': { name: 'Pergunta com Botões', icon: 'fa-question-circle', text: 'Qual é a sua pergunta?', buttons: 'Sim;Não' },
+            'delay': { name: 'Esperar (Delay)', icon: 'fa-clock', delay: 2 },
+            'image-message': { name: 'Imagem', icon: 'fa-image', url: 'https://placehold.co/600x400/2A2A2A/EAEAEA?text=Imagem' }
         };
-        modalCancelBtn.onclick = () => {
-            modalOverlay.classList.add('hidden');
-            if (onCancelCallback) onCancelCallback();
-        };
-        function showAlertModal(title, message, onClose) {
-            showConfirmModal(title, message, onClose);
-            modalCancelBtn.classList.add('hidden');
-        }
 
-        // --- LOGIN LOGIC ---
-        const loginScreen = document.getElementById('login-screen');
-        const appContainer = document.getElementById('app-container');
-        let flowBuilderInitialized = false; // Flag to prevent re-initialization
-
-        document.getElementById('login-form').addEventListener('submit', (e) => {
+        document.querySelectorAll('.draggable').forEach(draggable => {
+            draggable.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', e.target.dataset.componentType);
+                e.dataTransfer.setData('isNew', 'true');
+            });
+        });
+        flowCanvas.addEventListener('dragover', e => { e.preventDefault(); flowCanvas.classList.add('drag-over'); });
+        flowCanvas.addEventListener('dragleave', () => flowCanvas.classList.remove('drag-over'));
+        flowCanvas.addEventListener('drop', e => {
             e.preventDefault();
-            if (document.getElementById('username').value === 'admin' && document.getElementById('password').value === 'admin123') {
-                loginScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                if (!flowBuilderInitialized) {
-                    initFlowBuilder();
-                    flowBuilderInitialized = true;
-                }
-            } else {
-                const loginError = document.getElementById('login-error');
-                loginError.textContent = 'Utilizador ou senha inválidos.';
-                setTimeout(() => loginError.textContent = '', 3000);
+            flowCanvas.classList.remove('drag-over');
+            if (e.dataTransfer.getData('isNew') === 'true') {
+                createFlowComponent(e.dataTransfer.getData('text/plain'), e.clientX, e.clientY);
             }
         });
-        document.getElementById('logout-button').addEventListener('click', () => {
-            showConfirmModal('Sair?', 'Tem a certeza que deseja sair?', () => {
-                loginScreen.classList.remove('hidden');
-                appContainer.classList.add('hidden');
-            });
-        });
-        
-        // --- FLOW BUILDER ---
-        function initFlowBuilder() {
-            const canvasContainer = document.getElementById('canvas-container');
-            const flowCanvas = document.getElementById('flow-canvas');
-            const svgLayer = document.getElementById('svg-layer');
-            const botNameInput = document.getElementById('bot-name-input');
-            const botProfilePicInput = document.getElementById('bot-profile-pic-input');
-            const previewBotName = document.getElementById('preview-bot-name');
-            const previewBotAvatar = document.getElementById('preview-bot-avatar');
-            const previewChatBody = document.getElementById('preview-chat-body');
 
-            let nodes = {}, connections = [], nodeIdCounter = 0, selectedNodeId = null;
-            let pan = { x: 0, y: 0, scale: 1, isPanning: false, startX: 0, startY: 0 };
-            let isDraggingTemplate = false;
+        function createFlowComponent(type, x, y) {
+            const id = `component_${Date.now()}`;
+            const wrapper = document.createElement('div');
+            wrapper.id = id;
+            wrapper.className = 'canvas-component';
+            const rect = flowCanvas.getBoundingClientRect();
+            wrapper.style.left = `${x - rect.left - 140}px`;
+            wrapper.style.top = `${y - rect.top - 40}px`;
+            wrapper.dataset.componentType = type;
 
-            // --- PAN AND ZOOM ---
-            const updateCanvasTransform = () => {
-                flowCanvas.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${pan.scale})`;
-                redrawAllConnections();
-            };
-            const toCanvasCoords = (e) => {
-                const rect = canvasContainer.getBoundingClientRect();
-                return {
-                    x: (e.clientX - rect.left - pan.x) / pan.scale,
-                    y: (e.clientY - rect.top - pan.y) / pan.scale
-                };
-            };
-            canvasContainer.addEventListener('wheel', e => {
-                e.preventDefault();
-                const rect = canvasContainer.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
-                const oldScale = pan.scale;
-                pan.scale *= e.deltaY > 0 ? 0.9 : 1.1;
-                pan.scale = Math.max(0.2, Math.min(pan.scale, 2));
-                pan.x = mouseX - (mouseX - pan.x) * (pan.scale / oldScale);
-                pan.y = mouseY - (mouseY - pan.y) * (pan.scale / oldScale);
-                updateCanvasTransform();
-            });
-            canvasContainer.addEventListener('mousedown', e => {
-                if (e.target !== canvasContainer) return;
-                selectNode(null);
-                pan.isPanning = true;
-                pan.startX = e.clientX;
-                pan.startY = e.clientY;
-            });
-            canvasContainer.addEventListener('mousemove', e => {
-                if (pan.isPanning) {
-                    pan.x += e.clientX - pan.startX;
-                    pan.y += e.clientY - pan.startY;
-                    pan.startX = e.clientX;
-                    pan.startY = e.clientY;
-                    updateCanvasTransform();
-                }
-            });
-            window.addEventListener('mouseup', () => {
-                pan.isPanning = false;
-            });
-            
-            // --- DRAG AND DROP ---
-            document.querySelectorAll('.node-template').forEach(t => {
-                t.addEventListener('dragstart', e => {
-                    isDraggingTemplate = true;
-                    e.dataTransfer.setData('text/plain', e.target.dataset.type);
-                });
-                t.addEventListener('dragend', () => {
-                    isDraggingTemplate = false;
-                });
-            });
-            canvasContainer.addEventListener('dragover', e => e.preventDefault());
-            canvasContainer.addEventListener('drop', e => {
-                if (!isDraggingTemplate) return;
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                const type = e.dataTransfer.getData('text/plain');
-                if (type) createNode(type, toCanvasCoords(e).x, toCanvasCoords(e).y);
-                isDraggingTemplate = false;
+            const info = componentInfoMap[type];
+            Object.keys(info).forEach(key => {
+                if(key !== 'name' && key !== 'icon') wrapper.dataset[key] = info[key];
             });
 
-            // --- CONNECTION LOGIC (CORRIGIDO) ---
-            const connectionManager = {
-                isConnecting: false,
-                startInfo: null,
-                tempLine: null,
-                hoveredConnector: null,
+            let displayText = info.text || `Aguardar por ${info.delay} segundos`;
+            if (type === 'image-message') displayText = "Componente de Imagem";
 
-                // Bind event handlers to the object context
-                dragHandler: null,
-                endHandler: null,
-
-                start(e, nodeId, connector) {
-                    e.stopPropagation();
-                    this.isConnecting = true;
-                    this.startInfo = { nodeId, choice: connector.dataset.choice ?? null };
-                    this.tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    this.tempLine.setAttribute('class', 'connection-line');
-                    svgLayer.appendChild(this.tempLine);
-                    
-                    // Create bound handlers
-                    this.dragHandler = this.drag.bind(this);
-                    this.endHandler = this.end.bind(this);
-
-                    document.addEventListener('mousemove', this.dragHandler);
-                    document.addEventListener('mouseup', this.endHandler);
-                },
-
-                drag(e) {
-                    if (!this.isConnecting) return;
-                    const startConnector = nodes[this.startInfo.nodeId].el.querySelector(this.startInfo.choice != null ? `.connector.output[data-choice="${this.startInfo.choice}"]` : '.connector.output:not([data-choice])');
-                    const startPos = getConnectorPosition(startConnector);
-                    const mousePos = toCanvasCoords(e);
-                    this.tempLine.setAttribute('d', getBezierPath(startPos.x, startPos.y, mousePos.x, mousePos.y));
-                    
-                    if (this.hoveredConnector) this.hoveredConnector.classList.remove('highlight-target');
-                    this.hoveredConnector = null;
-                    
-                    const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-                    if (elementUnderMouse && elementUnderMouse.classList.contains('connector') && elementUnderMouse.classList.contains('input')) {
-                        const targetNodeId = elementUnderMouse.closest('.flow-node').id;
-                        if (targetNodeId !== this.startInfo.nodeId) {
-                            this.hoveredConnector = elementUnderMouse;
-                            this.hoveredConnector.classList.add('highlight-target');
-                        }
-                    }
-                },
-
-                end(e) {
-                    if (this.hoveredConnector) {
-                        const fromId = this.startInfo.nodeId;
-                        const toId = this.hoveredConnector.closest('.flow-node').id;
-                        const choice = this.startInfo.choice;
-                        // Remove any existing connection from the same output connector
-                        connections = connections.filter(c => !(c.from === fromId && c.choice === choice));
-                        connections.push({ from: fromId, to: toId, choice });
-                        saveState();
-                        redrawAllConnections();
-                    }
-                    this.reset();
-                },
-                
-                reset() {
-                    // Always remove the listeners
-                    document.removeEventListener('mousemove', this.dragHandler);
-                    document.removeEventListener('mouseup', this.endHandler);
-
-                    this.isConnecting = false;
-                    this.startInfo = null;
-                    this.tempLine?.remove();
-                    this.tempLine = null;
-                    this.hoveredConnector?.classList.remove('highlight-target');
-                    this.hoveredConnector = null;
-                    this.dragHandler = null;
-                    this.endHandler = null;
-                }
-            };
-
-            const getBezierPath = (x1, y1, x2, y2) => `M ${x1} ${y1} C ${x1 + Math.abs(x2 - x1) * 0.6} ${y1}, ${x2 - Math.abs(x2 - x1) * 0.6} ${y2}, ${x2} ${y2}`;
-            const getConnectorPosition = el => {
-                const nodeEl = el.closest('.flow-node');
-                return {
-                    x: nodeEl.offsetLeft + el.offsetLeft + el.offsetWidth / 2,
-                    y: nodeEl.offsetTop + el.offsetTop + el.offsetHeight / 2
-                };
-            };
-            const redrawAllConnections = () => {
-                svgLayer.innerHTML = '';
-                connections.forEach(conn => {
-                    const fromNode = nodes[conn.from], toNode = nodes[conn.to];
-                    if (!fromNode || !toNode) return;
-                    const fromConnector = conn.choice != null ? fromNode.el.querySelector(`.connector.output[data-choice="${conn.choice}"]`) : fromNode.el.querySelector('.connector.output:not([data-choice])');
-                    const toConnector = toNode.el.querySelector('.connector.input');
-                    if (!fromConnector || !toConnector) return;
-                    const startPos = getConnectorPosition(fromConnector), endPos = getConnectorPosition(toConnector);
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    path.setAttribute('d', getBezierPath(startPos.x, startPos.y, endPos.x, endPos.y));
-                    path.setAttribute('class', 'connection-line');
-                    svgLayer.appendChild(path);
-                });
-            };
-
-            // --- NODE CREATION AND MANAGEMENT ---
-            function createNode(type, x, y, id = null, content = []) {
-                const nodeId = id || `node-${nodeIdCounter++}`;
-                const nodeEl = document.createElement('div');
-                nodeEl.className = 'flow-node';
-                nodeEl.id = nodeId;
-                nodeEl.dataset.type = type;
-                nodeEl.style.left = `${x}px`;
-                nodeEl.style.top = `${y}px`;
-
-                let headerText = '', headerIcon = '', contentHtml = '', hasInput = true, hasOutput = true;
-                
-                switch(type) {
-                    case 'start': headerText = 'Início'; headerIcon = 'fa-flag-checkered'; contentHtml = `<p style="text-align:center;">Ponto de partida</p>`; hasInput = false; break;
-                    case 'end': headerText = 'Fim'; headerIcon = 'fa-stop-circle'; contentHtml = `<p style="text-align:center;">Ponto final</p>`; hasOutput = false; break;
-                    case 'message': headerText = 'Mensagem'; headerIcon = 'fa-comment-dots'; contentHtml = `<label>Texto:</label><textarea>${content[0] || ''}</textarea>`; break;
-                    case 'image': headerText = 'Imagem'; headerIcon = 'fa-image'; contentHtml = `<label>URL:</label><textarea>${content[0] || ''}</textarea>`; break;
-                    case 'video': headerText = 'Vídeo'; headerIcon = 'fa-video'; contentHtml = `<label>URL (YouTube/Vimeo):</label><textarea>${content[0] || ''}</textarea>`; break;
-                    case 'audio': headerText = 'Áudio'; headerIcon = 'fa-volume-up'; contentHtml = `<label>URL (MP3, etc.):</label><textarea>${content[0] || ''}</textarea>`; break;
-                    case 'question': headerText = 'Pergunta (Sim/Não)'; headerIcon = 'fa-question-circle'; contentHtml = `<label>Pergunta:</label><textarea>${content[0] || ''}</textarea>`; break;
-                    case 'userInput': headerText = 'Entrada do Utilizador'; headerIcon = 'fa-keyboard'; contentHtml = `<label>Pergunta:</label><textarea>${content[0] || ''}</textarea><label>Salvar em:</label><input type="text" value="${content[1] || ''}">`; break;
-                    case 'delay': headerText = 'Atraso'; headerIcon = 'fa-clock'; contentHtml = `<label>Duração (ms):</label><input type="number" value="${content[0] || '1500'}">`; break;
-                    case 'cta': headerText = 'Botão CTA'; headerIcon = 'fa-rocket'; contentHtml = `<label>Texto:</label><textarea>${content[0] || ''}</textarea><label>URL:</label><textarea>${content[1] || ''}</textarea>`; hasOutput = false; break;
-                    case 'multipleChoice':
-                        headerText = 'Múltiplas Escolhas'; headerIcon = 'fa-check-double';
-                        const options = content.length > 1 ? content.slice(1) : ['Opção 1'];
-                        const buttonsHtml = options.map((text, i) => `<div class="button-option" data-index="${i}"><input type="text" value="${text}"><i class="fas fa-times remove-btn"></i></div>`).join('');
-                        contentHtml = `<label>Pergunta:</label><textarea>${content[0] || ''}</textarea><label>Opções:</label><div id="buttons-container">${buttonsHtml}</div><button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>`;
-                        break;
-                }
-
-                nodeEl.innerHTML = `<div class="node-header"><i class="fas ${headerIcon}"></i> ${headerText} <button class="delete-node-btn"><i class="fas fa-trash-alt"></i></button></div><div class="node-content">${contentHtml}</div>`;
-                if(hasInput) nodeEl.insertAdjacentHTML('beforeend', `<div class="connector input"></div>`);
-                if(hasOutput) {
-                    if (type === 'question') {
-                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" data-choice="yes" style="top: 40%;"><span style="position: absolute; right: 20px; font-size: 11px; color: #aaffaa; pointer-events:none;">Sim</span></div>`);
-                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" data-choice="no" style="top: 70%;"><span style="position: absolute; right: 20px; font-size: 11px; color: #ffaaaa; pointer-events:none;">Não</span></div>`);
-                    } else if (type !== 'multipleChoice') {
-                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" style="top: 50%; transform: translateY(-50%);"></div>`);
-                    }
-                }
-                
-                flowCanvas.appendChild(nodeEl);
-                nodes[nodeId] = { id: nodeId, el: nodeEl, type, x, y, content: getNodeContent(nodeEl) };
-                if (type === 'multipleChoice') updateMultipleChoiceConnectors(nodeEl);
-                makeNodeDraggable(nodeEl);
-                setupNodeEventListeners(nodeEl);
-                if (!id) saveState();
-            }
-            const getNodeContent = nodeEl => Array.from(nodeEl.querySelectorAll('.node-content textarea, .node-content input')).map(el => el.value);
-            const updateMultipleChoiceConnectors = nodeEl => {
-                nodeEl.querySelectorAll('.connector.output').forEach(c => c.remove());
-                nodeEl.querySelectorAll('.button-option').forEach((optionDiv, i) => {
-                    const connector = document.createElement('div');
-                    connector.className = 'connector output';
-                    connector.dataset.choice = i;
-                    const topPosition = optionDiv.offsetTop + (optionDiv.offsetHeight / 2) + nodeEl.querySelector('.node-header').offsetHeight;
-                    connector.style.top = `${topPosition}px`;
-                    nodeEl.appendChild(connector);
-                });
-                setupNodeEventListeners(nodeEl);
-            };
-            function setupNodeEventListeners(nodeEl) {
-                // Remove potential old listeners before adding new ones
-                nodeEl.querySelectorAll('.connector.output').forEach(c => {
-                    const new_c = c.cloneNode(true);
-                    c.parentNode.replaceChild(new_c, c);
-                    new_c.addEventListener('mousedown', e => connectionManager.start(e, nodeEl.id, new_c));
-                });
-
-                nodeEl.querySelector('.delete-node-btn')?.addEventListener('click', e => {
-                    e.stopPropagation();
-                    showConfirmModal('Excluir Bloco?', 'Tem certeza que deseja excluir este bloco?', () => deleteNode(nodeEl.id));
-                });
-                nodeEl.querySelectorAll('textarea, input').forEach(input => {
-                    input.addEventListener('input', () => {
-                        nodes[nodeEl.id].content = getNodeContent(nodeEl);
-                        if(nodeEl.dataset.type === 'multipleChoice') updateMultipleChoiceConnectors(nodeEl);
-                        saveState();
-                    });
-                    input.addEventListener('mousedown', e => e.stopPropagation());
-                });
-                nodeEl.querySelector('.add-btn')?.addEventListener('click', () => {
-                    const container = nodeEl.querySelector('#buttons-container');
-                    container.insertAdjacentHTML('beforeend', `<div class="button-option" data-index="${container.children.length}"><input type="text" value="Nova Opção"><i class="fas fa-times remove-btn"></i></div>`);
-                    updateMultipleChoiceConnectors(nodeEl);
-                    setupNodeEventListeners(nodeEl);
-                });
-                nodeEl.querySelectorAll('.remove-btn').forEach(btn => {
-                    btn.onclick = e => {
-                        e.stopPropagation();
-                        btn.closest('.button-option').remove();
-                        updateMultipleChoiceConnectors(nodeEl);
-                        saveState();
-                    };
-                });
-            }
-            function makeNodeDraggable(nodeEl) {
-                let dragOffsetX, dragOffsetY;
-                const onMouseMove = e => {
-                    e.preventDefault();
-                    nodes[nodeEl.id].x = (e.clientX - pan.x) / pan.scale - dragOffsetX;
-                    nodes[nodeEl.id].y = (e.clientY - pan.y) / pan.scale - dragOffsetY;
-                    nodeEl.style.left = `${nodes[nodeEl.id].x}px`;
-                    nodeEl.style.top = `${nodes[nodeEl.id].y}px`;
-                    redrawAllConnections();
-                };
-                const onMouseUp = () => {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                    saveState();
-                };
-                nodeEl.addEventListener('mousedown', e => {
-                    if (e.target.closest('textarea, input, .connector, .delete-node-btn')) return;
-                    selectNode(nodeEl.id);
-                    dragOffsetX = (e.clientX - pan.x) / pan.scale - nodes[nodeEl.id].x;
-                    dragOffsetY = (e.clientY - pan.y) / pan.scale - nodes[nodeEl.id].y;
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
-                });
-            }
-            const selectNode = nodeId => {
-                if (selectedNodeId && nodes[selectedNodeId]?.el) nodes[selectedNodeId].el.classList.remove('selected');
-                selectedNodeId = nodeId;
-                if (nodeId && nodes[nodeId]?.el) nodes[nodeId].el.classList.add('selected');
-            };
-            const deleteNode = nodeId => {
-                connections = connections.filter(c => c.from !== nodeId && c.to !== nodeId);
-                nodes[nodeId]?.el.remove();
-                delete nodes[nodeId];
-                redrawAllConnections();
-                saveState();
-            };
-            document.addEventListener('keydown', e => {
-                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId && !e.target.matches('input, textarea')) {
-                    deleteNode(selectedNodeId);
-                }
-            });
-
-            // --- IMPORT/EXPORT/SAVE/LOAD ---
-            const saveState = () => {
-                const state = {
-                    nodes: Object.values(nodes).map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, content: n.content })),
-                    connections, nodeIdCounter, pan,
-                    botSettings: { name: botNameInput.value, profilePic: botProfilePicInput.value }
-                };
-                localStorage.setItem('zapflowBuilderState', JSON.stringify(state));
-            };
-            const resetCanvas = () => {
-                flowCanvas.innerHTML = '<svg id="svg-layer"></svg>';
-                nodes = {}; connections = []; selectedNodeId = null; nodeIdCounter = 0;
-                pan = { x: 0, y: 0, scale: 1 };
-                updateCanvasTransform();
-            };
-            const loadState = data => {
-                const state = data || JSON.parse(localStorage.getItem('zapflowBuilderState'));
-                if (!state) {
-                    botNameInput.value = 'ZAPFLOW BOT';
-                    botProfilePicInput.value = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
-                    updateBotPreview();
-                    return;
-                }
-                resetCanvas();
-                nodeIdCounter = state.nodeIdCounter || 0;
-                pan = state.pan || { x: 0, y: 0, scale: 1 };
-                updateCanvasTransform();
-                state.nodes?.forEach(n => createNode(n.type, n.x, n.y, n.id, n.content));
-                connections = state.connections || [];
-                redrawAllConnections();
-                if (state.botSettings) {
-                    botNameInput.value = state.botSettings.name || 'ZAPFLOW BOT';
-                    botProfilePicInput.value = state.botSettings.profilePic || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
-                }
-                updateBotPreview();
-            };
-            document.getElementById('export-flow-btn').addEventListener('click', () => {
-                const dataStr = localStorage.getItem('zapflowBuilderState');
-                const blob = new Blob([dataStr], {type: 'application/json'});
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'zapflow_flow.json';
-                a.click();
-                URL.revokeObjectURL(a.href);
-            });
-            document.getElementById('import-flow-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
-            document.getElementById('import-file-input').addEventListener('change', e => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = event => {
-                    try {
-                        showConfirmModal('Importar Fluxo?', 'Isto irá substituir o fluxo atual. Tem a certeza?', () => loadState(JSON.parse(event.target.result)));
-                    } catch (err) { showAlertModal('Erro', 'Ficheiro JSON inválido.'); }
-                };
-                reader.readAsText(file);
-                e.target.value = '';
-            });
-            document.getElementById('clear-flow-btn').addEventListener('click', () => {
-                showConfirmModal('Limpar Fluxo?', 'Tem certeza que deseja apagar todo o fluxo?', () => {
-                    resetCanvas();
-                    saveState();
-                });
-            });
-
-            // --- BOT SETTINGS ---
-            const updateBotPreview = () => {
-                previewBotName.textContent = botNameInput.value || 'ZAPFLOW BOT';
-                previewBotAvatar.src = botProfilePicInput.value || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
-                previewBotAvatar.onerror = () => { previewBotAvatar.src = 'https://placehold.co/45x45/CCCCCC/000000?text=Bot'; };
-            };
-            botNameInput.addEventListener('input', () => { updateBotPreview(); saveState(); });
-            botProfilePicInput.addEventListener('input', () => { updateBotPreview(); saveState(); });
-
-            // --- FLOW SIMULATION ENGINE ---
-            const simulationEngine = {
-                async run(startNodeId, nodes, connections, variables, onUiUpdate) {
-                    const processText = text => text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] || `{{${key}}}`);
-                    
-                    let currentNodeId = startNodeId;
-                    while(currentNodeId) {
-                        const node = nodes[currentNodeId];
-                        if (!node) break;
-
-                        const content = node.content.map(c => processText(c || ''));
-                        let nextNodeId;
-
-                        switch(node.type) {
-                            case 'start': break;
-                            case 'end': onUiUpdate({ type: 'addMessage', text: "Fluxo finalizado.", sender: "received" }); return;
-                            case 'message': onUiUpdate({ type: 'addMessage', text: content[0], sender: "received" }); break;
-                            case 'image': onUiUpdate({ type: 'addMessage', text: null, imageUrl: content[0], sender: "received" }); break;
-                            case 'video': onUiUpdate({ type: 'addVideo', url: content[0] }); break;
-                            case 'audio': onUiUpdate({ type: 'addAudio', url: content[0] }); break;
-                            case 'delay': await onUiUpdate({ type: 'showTyping', duration: parseInt(content[0] || 1500) }); break;
-                            case 'cta': onUiUpdate({ type: 'addCta', text: content[0], url: content[1] }); return;
-                            case 'userInput':
-                                const userInput = await onUiUpdate({ type: 'waitForInput', text: content[0] });
-                                variables[node.content[1]] = userInput;
-                                break;
-                            case 'question':
-                            case 'multipleChoice':
-                                const choices = node.type === 'question' ? ['Sim', 'Não'] : content.slice(1);
-                                const choiceIndex = await onUiUpdate({ type: 'waitForChoice', text: content[0], choices });
-                                const choiceVal = node.type === 'question' ? (choiceIndex === 0 ? 'yes' : 'no') : choiceIndex.toString();
-                                nextNodeId = connections.find(c => c.from === currentNodeId && c.choice === choiceVal)?.to;
-                                break;
-                        }
-                        if (node.type !== 'question' && node.type !== 'multipleChoice') {
-                           nextNodeId = connections.find(c => c.from === currentNodeId)?.to;
-                        }
-                        currentNodeId = nextNodeId;
-                    }
-                }
-            };
-
-            // --- PREVIEW UI HANDLER ---
-            document.getElementById('run-flow-btn').addEventListener('click', () => {
-                previewChatBody.innerHTML = '';
-                const flowVariables = {};
-                const startNode = Object.values(nodes).find(n => n.type === 'start');
-                if (!startNode) return showAlertModal('Erro', 'Nenhum nó de "Início" encontrado.');
-
-                const onUiUpdate = async (action) => {
-                    const addMessage = (text, sender, imageUrl = null) => {
-                        const msgDiv = document.createElement('div');
-                        msgDiv.className = `message ${sender}`;
-                        if (imageUrl) msgDiv.innerHTML += `<img src="${imageUrl}" onerror="this.src='https://placehold.co/150x100?text=Error'">`;
-                        if (text) msgDiv.innerHTML += `<span>${text.replace(/\n/g, '<br>')}</span>`;
-                        previewChatBody.appendChild(msgDiv);
-                        previewChatBody.scrollTop = previewChatBody.scrollHeight;
-                        return msgDiv;
-                    };
-                    switch (action.type) {
-                        case 'addMessage': addMessage(action.text, action.sender, action.imageUrl); break;
-                        case 'addCta': addMessage(null, "received").innerHTML = `<div class="cta-button-container"><a class="cta-button" href="${action.url}" target="_blank">${action.text}</a></div>`; break;
-                        case 'addVideo':
-                            let embedHtml = '';
-                            try {
-                                const url = new URL(action.url);
-                                if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
-                                    const videoId = url.hostname.includes('youtu.be') ? url.pathname.slice(1).split('?')[0] : url.searchParams.get('v');
-                                    if(videoId) embedHtml = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-                                } else if (url.hostname.includes('vimeo.com')) {
-                                    const videoId = url.pathname.split('/').pop();
-                                    if(videoId) embedHtml = `<iframe src="https://player.vimeo.com/video/${videoId}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
-                                }
-                            } catch (e) { console.error("Invalid video URL", e); }
-                            
-                            if (embedHtml) addMessage(null, "received").innerHTML = `<div class="video-container">${embedHtml}</div>`;
-                            else addMessage('Link de vídeo inválido ou não suportado.', 'received');
-                            break;
-                        case 'addAudio':
-                            addMessage(null, "received").innerHTML = `<audio controls src="${action.url}" style="width: 100%;"></audio>`;
-                            break;
-                        case 'showTyping':
-                            const typing = document.createElement('div');
-                            typing.className = 'typing-indicator';
-                            typing.innerHTML = '<span></span><span></span><span></span>';
-                            previewChatBody.appendChild(typing);
-                            previewChatBody.scrollTop = previewChatBody.scrollHeight;
-                            await new Promise(r => setTimeout(r, action.duration));
-                            typing.remove();
-                            break;
-                        case 'waitForInput':
-                            addMessage(action.text, "received");
-                            return new Promise(resolve => {
-                                const container = document.createElement('div');
-                                container.className = 'user-input-container';
-                                container.innerHTML = `<input type="text" placeholder="Digite..."><button><i class="fas fa-paper-plane"></i></button>`;
-                                const input = container.querySelector('input'), btn = container.querySelector('button');
-                                const submit = () => { if (input.value.trim()) { addMessage(input.value, 'sent'); resolve(input.value); container.remove(); } };
-                                btn.onclick = submit;
-                                input.onkeypress = e => { if (e.key === 'Enter') submit(); };
-                                previewChatBody.appendChild(container);
-                                input.focus();
-                            });
-                        case 'waitForChoice':
-                            addMessage(action.text, "received");
-                            return new Promise(resolve => {
-                                const container = document.createElement('div');
-                                container.className = 'choice-container';
-                                action.choices.forEach((text, i) => {
-                                    const btn = document.createElement('button');
-                                    btn.className = 'choice-button';
-                                    btn.textContent = text;
-                                    btn.onclick = () => { addMessage(text, 'sent'); container.remove(); resolve(i); };
-                                    container.appendChild(btn);
-                                });
-                                previewChatBody.appendChild(container);
-                            });
-                    }
-                };
-                simulationEngine.run(startNode.id, nodes, connections, flowVariables, onUiUpdate);
-            });
-
-            // --- EXECUTABLE HTML DOWNLOAD ---
-            document.getElementById('download-html-btn').addEventListener('click', () => {
-                if (!Object.values(nodes).find(n => n.type === 'start')) return showAlertModal('Erro', 'É necessário um nó de "Início" para criar um funil executável.');
-                
-                const flowState = JSON.parse(localStorage.getItem('zapflowBuilderState'));
-                const chatCss = `
-                    body { font-family: 'Roboto', sans-serif; margin: 0; background-color: #e5ddd5; }
-                    .chat-container { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
-                    .chat-header { background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-                    .chat-header img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
-                    .chat-header .name { font-weight: bold; } .chat-header .status { font-size: 0.8em; color: #d1d1d1; }
-                    .chat-body { flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); }
-                    .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-                    .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
-                    .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
-                    .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-                    .message .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; }
-                    .message .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-                    .message audio { width: 100%; margin-top: 5px; }
-                    .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
-                    .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
-                    .typing-indicator span:nth-child(2) { animation-delay: 0.1s; } .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
-                    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-                    .choice-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 5px 10px; align-self: flex-end; }
-                    .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-                    .cta-button-container { padding: 10px; align-self: stretch; }
-                    .cta-button { background: linear-gradient(45deg, #25D366, #128C7E); color: white; text-align: center; text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px; border-radius: 30px; display: block; }
-                    .user-input-container { position: sticky; bottom: 0; display: flex; gap: 5px; padding: 10px; background: #f0f2f5; border-top: 1px solid #ddd; }
-                    .user-input-container input { flex-grow: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; }
-                    .user-input-container button { padding: 8px 15px; border-radius: 50%; border: none; background-color: #075E54; color: white; cursor: pointer; width:45px; height:45px; flex-shrink:0; }
-                `;
-                const runnerJs = `
-                    const flowState = ${JSON.stringify(flowState)};
-                    const nodes = {};
-                    flowState.nodes.forEach(n => { nodes[n.id] = n; });
-                    const connections = flowState.connections;
-                    const flowVariables = {};
-                    const chatBody = document.getElementById('chat-body');
-                    const simulationEngine = { run: ${simulationEngine.run.toString()} };
-                    const onUiUpdate = async (action) => {
-                        const addMessage = (text, sender, imageUrl = null) => {
-                            const msgDiv = document.createElement('div');
-                            msgDiv.className = \`message \${sender}\`;
-                            if (imageUrl) msgDiv.innerHTML += \`<img src="\${imageUrl}" onerror="this.src='https://placehold.co/150x100?text=Error'">\`;
-                            if (text) msgDiv.innerHTML += \`<span>\${text.replace(/\\n/g, '<br>')}</span>\`;
-                            chatBody.appendChild(msgDiv);
-                            chatBody.scrollTop = chatBody.scrollHeight;
-                            return msgDiv;
-                        };
-                        switch (action.type) {
-                            case 'addMessage': addMessage(action.text, action.sender, action.imageUrl); break;
-                            case 'addCta': addMessage(null, "received").innerHTML = \`<div class="cta-button-container"><a class="cta-button" href="\${action.url}" target="_blank">\${action.text}</a></div>\`; break;
-                            case 'addVideo':
-                                let embedHtml = '';
-                                try {
-                                    const url = new URL(action.url);
-                                    if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
-                                        const videoId = url.hostname.includes('youtu.be') ? url.pathname.slice(1).split('?')[0] : url.searchParams.get('v');
-                                        if(videoId) embedHtml = \`<iframe src="https://www.youtube-nocookie.com/embed/\${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>\`;
-                                    } else if (url.hostname.includes('vimeo.com')) {
-                                        const videoId = url.pathname.split('/').pop();
-                                        if(videoId) embedHtml = \`<iframe src="https://player.vimeo.com/video/\${videoId}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>\`;
-                                    }
-                                } catch (e) { console.error("Invalid video URL", e); }
-                                if (embedHtml) addMessage(null, "received").innerHTML = \`<div class="video-container">\${embedHtml}</div>\`;
-                                else addMessage('Link de vídeo inválido ou não suportado.', 'received');
-                                break;
-                            case 'addAudio':
-                                addMessage(null, "received").innerHTML = \`<audio controls src="\${action.url}" style="width: 100%;"></audio>\`;
-                                break;
-                            case 'showTyping':
-                                const typing = document.createElement('div');
-                                typing.className = 'typing-indicator';
-                                typing.innerHTML = '<span></span><span></span><span></span>';
-                                chatBody.appendChild(typing);
-                                chatBody.scrollTop = chatBody.scrollHeight;
-                                await new Promise(r => setTimeout(r, action.duration));
-                                typing.remove();
-                                break;
-                            case 'waitForInput':
-                                addMessage(action.text, "received");
-                                return new Promise(resolve => {
-                                    const container = document.createElement('div');
-                                    container.className = 'user-input-container';
-                                    container.innerHTML = \`<input type="text" placeholder="Digite..."><button><i class="fas fa-paper-plane"></i></button>\`;
-                                    const input = container.querySelector('input'), btn = container.querySelector('button');
-                                    const submit = () => { if (input.value.trim()) { addMessage(input.value, 'sent'); resolve(input.value); container.remove(); } };
-                                    btn.onclick = submit;
-                                    input.onkeypress = e => { if (e.key === 'Enter') submit(); };
-                                    document.querySelector('.chat-container').appendChild(container);
-                                    input.focus();
-                                });
-                            case 'waitForChoice':
-                                addMessage(action.text, "received");
-                                return new Promise(resolve => {
-                                    const container = document.createElement('div');
-                                    container.className = 'choice-container';
-                                    action.choices.forEach((text, i) => {
-                                        const btn = document.createElement('button');
-                                        btn.className = 'choice-button';
-                                        btn.textContent = text;
-                                        btn.onclick = () => { addMessage(text, 'sent'); container.remove(); resolve(i); };
-                                        container.appendChild(btn);
-                                    });
-                                    chatBody.appendChild(container);
-                                });
-                        }
-                    };
-                    document.addEventListener('DOMContentLoaded', () => {
-                        const startNode = Object.values(nodes).find(node => node.type === 'start');
-                        if (startNode) simulationEngine.run(startNode.id, nodes, connections, flowVariables, onUiUpdate);
-                    });
-                `;
-                const finalHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>${flowState.botSettings.name || 'ZAPFLOW Chat'}</title>
-                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-                        <style>${chatCss}</style></head><body>
-                        <div class="chat-container">
-                            <div class="chat-header">
-                                <img src="${flowState.botSettings.profilePic || 'https://placehold.co/45x45'}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
-                                <div class="contact-info">
-                                    <div class="name">${flowState.botSettings.name || 'ZAPFLOW BOT'}</div>
-                                    <div class="status">online</div>
-                                </div>
-                            </div>
-                            <div class="chat-body" id="chat-body"></div>
+            wrapper.innerHTML = `
+                <div class="component-header">
+                    <div class="accent-bar neon-yellow-bar"></div>
+                    <div class="flex justify-between items-center p-2">
+                        <p class="text-sm font-semibold flex items-center"><i class="fas ${info.icon} mr-2 neon-yellow-text"></i> ${info.name}</p>
+                        <div class="component-controls gap-2">
+                            <button class="control-btn edit text-xs" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="control-btn remove text-xs" title="Remover"><i class="fas fa-times"></i></button>
                         </div>
-                        <script>${runnerJs}<\/script></body></html>`;
-                const blob = new Blob([finalHtml], { type: 'text/html' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'funil_interativo.html';
-                a.click();
-                URL.revokeObjectURL(a.href);
-            });
-
-            // --- INITIALIZATION ---
-            loadState();
+                    </div>
+                </div>
+                <div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${displayText}</p></div>
+                <div class="connector-point input"></div><div class="connector-point output"></div>
+            `;
+            flowCanvas.appendChild(wrapper);
+            makeDraggable(wrapper);
+            setupControls(wrapper);
+            updatePreview();
         }
+
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            element.onmousedown = e => {
+                if (e.target.closest('.connector-point, .component-controls')) return;
+                e.preventDefault();
+                pos3 = e.clientX; pos4 = e.clientY;
+                document.onmouseup = closeDragElement; document.onmousemove = elementDrag;
+            };
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                pos3 = e.clientX; pos4 = e.clientY;
+                element.style.top = `${element.offsetTop - pos2}px`;
+                element.style.left = `${element.offsetLeft - pos1}px`;
+                updateConnectionsForElement(element);
+            }
+            function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
+        }
+        
+        function setupControls(element) {
+            element.querySelector('.remove').onclick = () => {
+                removeConnectionsForElement(element);
+                element.remove();
+                updatePreview();
+            };
+            element.querySelector('.edit').onclick = () => openEditModal(element);
+        }
+
+        function openEditModal(element) {
+            elementToEdit = element;
+            const type = element.dataset.componentType;
+            const modalBody = modal.querySelector('#modal-body');
+            let formHTML = '';
+
+            switch(type) {
+                case 'received-message':
+                case 'sent-message':
+                    formHTML = `<label for="text-input" class="block text-sm font-medium text-text-secondary mb-2">Texto da Mensagem</label>
+                                <textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="4">${element.dataset.text}</textarea>`;
+                    break;
+                case 'ask-question':
+                    formHTML = `<label for="text-input" class="block text-sm font-medium text-text-secondary mb-2">Texto da Pergunta</label>
+                                <textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="3">${element.dataset.text}</textarea>
+                                <label for="buttons-input" class="block text-sm font-medium text-text-secondary mt-4 mb-2">Botões (um por linha)</label>
+                                <textarea id="buttons-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="3">${element.dataset.buttons.split(';').join('\n')}</textarea>`;
+                    break;
+                case 'delay':
+                    formHTML = `<label for="delay-input" class="block text-sm font-medium text-text-secondary mb-2">Tempo de espera (segundos)</label>
+                                <input type="number" id="delay-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.delay}">`;
+                    break;
+                case 'image-message':
+                    formHTML = `<label for="url-input" class="block text-sm font-medium text-text-secondary mb-2">URL da Imagem</label>
+                                <input type="text" id="url-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.url}">`;
+                    break;
+            }
+            modalBody.innerHTML = formHTML;
+            modal.classList.remove('hidden');
+        }
+
+        modal.querySelector('#modal-save').onclick = () => {
+            if (!elementToEdit) return;
+            const type = elementToEdit.dataset.componentType;
+            let displayText = '';
+
+            switch(type) {
+                case 'received-message':
+                case 'sent-message':
+                    elementToEdit.dataset.text = modal.querySelector('#text-input').value;
+                    displayText = elementToEdit.dataset.text;
+                    break;
+                case 'ask-question':
+                    elementToEdit.dataset.text = modal.querySelector('#text-input').value;
+                    elementToEdit.dataset.buttons = modal.querySelector('#buttons-input').value.split('\n').join(';');
+                    displayText = elementToEdit.dataset.text;
+                    break;
+                case 'delay':
+                    elementToEdit.dataset.delay = modal.querySelector('#delay-input').value;
+                    displayText = `Aguardar por ${elementToEdit.dataset.delay} segundos`;
+                    break;
+                case 'image-message':
+                    elementToEdit.dataset.url = modal.querySelector('#url-input').value;
+                    displayText = "Componente de Imagem";
+                    break;
+            }
+            elementToEdit.querySelector('.component-text').innerText = displayText;
+            modal.classList.add('hidden');
+            elementToEdit = null;
+            updatePreview();
+        };
+        modal.querySelector('#modal-cancel').onclick = () => modal.classList.add('hidden');
+
+        flowCanvas.addEventListener('mousedown', e => {
+            if (e.target.classList.contains('output')) {
+                startElementForLine = e.target.parentElement;
+                currentDrawingLine = new LeaderLine(e.target, LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }), {
+                    color: 'rgba(255, 210, 63, 0.7)', size: 3, endPlug: 'arrow1', dash: { animation: true }
+                });
+            }
+        });
+        document.addEventListener('mousemove', e => { if (currentDrawingLine) currentDrawingLine.setOptions({ end: LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }) }); });
+        document.addEventListener('mouseup', e => {
+            if (currentDrawingLine) {
+                const endConnector = e.target.closest('.connector-point.input');
+                currentDrawingLine.remove();
+                if (endConnector && endConnector.parentElement !== startElementForLine) {
+                    const line = new LeaderLine(startElementForLine.querySelector('.output'), endConnector, {
+                        color: 'var(--accent-yellow)', size: 3, path: 'fluid', startSocketGravity: 60, endSocketGravity: 60,
+                        dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 8 }
+                    });
+                    connections.push({ line, start: startElementForLine, end: endConnector.parentElement });
+                }
+                startElementForLine = null;
+            }
+        });
+
+        function updateConnectionsForElement(element) { connections.forEach(conn => { if (conn.start === element || conn.end === element) conn.line.position(); }); }
+        function removeConnectionsForElement(element) {
+            const remaining = [];
+            connections.forEach(conn => {
+                if (conn.start === element || conn.end === element) conn.line.remove();
+                else remaining.push(conn);
+            });
+            connections = remaining;
+        }
+
+        function updatePreview() {
+            const previewChatContainer = document.getElementById('preview-chat-container');
+            previewChatContainer.innerHTML = `
+                <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+                    <img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;">
+                    <div>
+                        <div style="font-weight: bold;">TOP FLIX</div>
+                        <div style="font-size: 0.8em; color: #d1d1d1;">online</div>
+                    </div>
+                </div>
+                <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>
+            `;
+            const chatBody = document.getElementById('preview-chat-body');
+            const components = flowCanvas.querySelectorAll('.canvas-component');
+            components.forEach(comp => {
+                const previewElement = createPreviewComponent(comp);
+                if (previewElement) chatBody.appendChild(previewElement);
+            });
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        function createPreviewComponent(element) {
+            const type = element.dataset.componentType;
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const wrapper = document.createElement('div');
+            
+            switch(type) {
+                case 'received-message':
+                case 'ask-question':
+                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                        ${element.dataset.text}
+                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                    </div>`;
+                    if (type === 'ask-question') {
+                        const btnContainer = document.createElement('div');
+                        btnContainer.style.cssText = "display: flex; gap: 10px; justify-content: flex-end; padding: 5px 0;";
+                        element.dataset.buttons.split(';').forEach(btnText => {
+                            const button = document.createElement('button');
+                            button.innerText = btnText;
+                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold;";
+                            btnContainer.appendChild(button);
+                        });
+                        // This is a bit tricky, we need a parent for both message and buttons
+                        const parent = document.createElement('div');
+                        parent.appendChild(wrapper.firstChild);
+                        parent.appendChild(btnContainer);
+                        return parent;
+                    }
+                    return wrapper.firstChild;
+                case 'sent-message':
+                     wrapper.innerHTML = `<div style="align-self: flex-end; max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                        ${element.dataset.text}
+                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                    </div>`;
+                    return wrapper.firstChild;
+                case 'delay':
+                    wrapper.innerHTML = `<div style="align-self: flex-start; display: flex; align-items: center; padding: 10px 15px;">
+                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out;"></span>
+                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -1.1s;"></span>
+                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -0.9s;"></span>
+                    </div><style>@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }</style>`;
+                    return wrapper.firstChild;
+                case 'image-message':
+                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
+                        <img src="${element.dataset.url}" style="width: 100%; border-radius: 8px;" alt="Imagem do fluxo">
+                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; padding: 0 5px 2px;">${time}</span>
+                    </div>`;
+                    return wrapper.firstChild;
+            }
+        }
+        updatePreview();
     });
     </script>
 </body>

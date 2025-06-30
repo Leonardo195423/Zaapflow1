@@ -299,8 +299,7 @@
         #preview-panel { align-items: center; justify-content: center; }
         .mobile-preview {
             width: 100%; max-width: 380px; height: 95%; background-color: #111;
-            border-radius: 40px; border: none; /* REMOVED BLACK BORDER */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             display: flex; flex-direction: column; overflow: hidden;
         }
         .chat-header {
@@ -1013,8 +1012,7 @@
                 // Add listeners for connectors
                 nodeEl.querySelectorAll('.connector').forEach(c => {
                     c.addEventListener('mousedown', (e) => {
-                        e.preventDefault(); 
-                        e.stopPropagation(); 
+                        e.stopPropagation(); // Prevents node drag or canvas pan
                         handleConnectorClick(nodeEl.id, c, e); // Pass event to function
                     });
                     // Add 'mouseover' listener to highlight input connector
@@ -1584,15 +1582,15 @@
             
             // --- FLOW SIMULATION LOGIC ---
             let flowVariables = {}; // Stores user variables during simulation
+            let simulationMessages = []; // Stores messages for static HTML export
 
             /**
              * Adds a message to the preview chat body.
              * @param {string} text - The message text.
              * @param {string} type - 'received' for bot messages, 'sent' for user messages.
              * @param {string} [imageUrl] - Image URL if it's an image message.
-             * @param {HTMLElement} targetChatBody - The chat body element to add messages to.
              */
-            function addMessage(text, type, imageUrl = null, targetChatBody) {
+            function addMessage(text, type, imageUrl = null) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${type}`;
                 if (imageUrl) {
@@ -1606,21 +1604,23 @@
                     messageDiv.appendChild(img);
                 }
                 messageDiv.innerHTML += `<span>${text.replace(/\n/g, '<br>')}</span>`; // Add text and line breaks
-                targetChatBody.appendChild(messageDiv);
-                targetChatBody.scrollTop = targetChatBody.scrollHeight; // Scroll to bottom
+                previewChatBody.appendChild(messageDiv);
+                scrollToBottom();
+
+                // Store for static HTML export
+                simulationMessages.push({ text: text, type: type, imageUrl: imageUrl });
             }
 
             /**
              * Adds a typing indicator to the preview chat.
-             * @param {HTMLElement} targetChatBody - The chat body element to add the indicator to.
              * @returns {HTMLElement} The indicator element.
              */
-            function addTypingIndicator(targetChatBody) {
+            function addTypingIndicator() {
                 const indicator = document.createElement('div');
                 indicator.className = 'typing-indicator';
                 indicator.innerHTML = '<span></span><span></span><span></span>';
-                targetChatBody.appendChild(indicator);
-                targetChatBody.scrollTop = targetChatBody.scrollHeight;
+                previewChatBody.appendChild(indicator);
+                scrollToBottom();
                 return indicator;
             }
 
@@ -1635,12 +1635,18 @@
             }
 
             /**
+             * Auto-scrolls the chat to the bottom.
+             */
+            function scrollToBottom() {
+                previewChatBody.scrollTop = previewChatBody.scrollHeight;
+            }
+
+            /**
              * Waits for user choice via buttons.
              * @param {Array<string>} choices - Array of option texts.
-             * @param {HTMLElement} targetChatBody - The chat body element to add buttons to.
              * @returns {Promise<number>} A promise that resolves with the index of the selected choice.
              */
-            function waitForUserChoice(choices, targetChatBody) {
+            function waitForUserChoice(choices) {
                 return new Promise(resolve => {
                     const choiceContainer = document.createElement('div');
                     choiceContainer.className = 'choice-container';
@@ -1659,25 +1665,24 @@
                         };
                         choiceContainer.appendChild(button);
                     });
-                    targetChatBody.appendChild(choiceContainer);
-                    targetChatBody.scrollTop = targetChatBody.scrollHeight;
+                    previewChatBody.appendChild(choiceContainer);
+                    scrollToBottom();
                 });
             }
 
             /**
              * Waits for user text input.
              * @param {string} promptText - The question text for the user.
-             * @param {HTMLElement} targetChatBody - The chat body element to add input to.
              * @returns {Promise<string>} A promise that resolves with the text entered by the user.
              */
-            function waitForUserInput(promptText, targetChatBody) {
+            function waitForUserInput(promptText) {
                 return new Promise(resolve => {
                     // Replace flowVariables in promptText
                     let processedPromptText = promptText;
                     for (const key in flowVariables) {
                         processedPromptText = processedPromptText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
                     }
-                    addMessage(processedPromptText, "received", null, targetChatBody); // Show bot's question
+                    addMessage(processedPromptText, "received"); // Show bot's question
 
                     const inputContainer = document.createElement('div');
                     inputContainer.className = 'user-input-container';
@@ -1703,8 +1708,8 @@
 
                     inputContainer.appendChild(inputField);
                     inputContainer.appendChild(sendButton);
-                    targetChatBody.appendChild(inputContainer);
-                    targetChatBody.scrollTop = targetChatBody.scrollHeight;
+                    previewChatBody.appendChild(inputContainer);
+                    scrollToBottom();
                     inputField.focus(); // Focus on input field
                 });
             }
@@ -1713,14 +1718,11 @@
             /**
              * Simulates chat flow in the preview.
              * @param {string} currentNodeId - The ID of the current node to be processed.
-             * @param {HTMLElement} targetChatBody - The chat body element to display messages in.
-             * @param {object} allNodes - The nodes object from the builder.
-             * @param {Array<object>} allConnections - The connections array from the builder.
              */
-            async function simulateFlow(currentNodeId, targetChatBody, allNodes, allConnections) {
-                const currentNode = allNodes[currentNodeId];
+            async function simulateFlow(currentNodeId) {
+                const currentNode = nodes[currentNodeId];
                 if (!currentNode) {
-                    addMessage("Fluxo terminado ou nó inválido alcançado.", "received", null, targetChatBody);
+                    addMessage("Fluxo terminado ou nó inválido alcançado.", "received");
                     return;
                 }
                 console.log(`Simulating node: ${currentNodeId}, Type: ${currentNode.type}`);
@@ -1737,65 +1739,65 @@
 
                     switch (currentNode.type) {
                         case 'start':
-                            const startConnection = allConnections.find(c => c.from === currentNode.id);
-                            console.log("Start node connections found:", allConnections.filter(c => c.from === currentNode.id));
+                            const startConnection = connections.find(c => c.from === currentNode.id);
+                            console.log("Start node connections found:", connections.filter(c => c.from === currentNode.id));
                             if (startConnection) {
                                 console.log(`Found start connection to: ${startConnection.to}`);
-                                await simulateFlow(startConnection.to, targetChatBody, allNodes, allConnections); // Continue to next node
+                                await simulateFlow(startConnection.to); // Continue to next node
                             } else {
-                                console.log("No connection found for start node. Flow terminated.", allConnections);
-                                addMessage("Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", "received", null, targetChatBody);
+                                console.log("No connection found for start node. Flow terminated.", connections);
+                                addMessage("Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", "received");
                             }
                             break;
 
                         case 'end': // New 'end' node behavior
-                            addMessage("Fluxo finalizado.", "received", null, targetChatBody);
+                            addMessage("Fluxo finalizado.", "received");
                             console.log("End node reached. Flow terminated.");
                             return; // Stop simulation here
 
                         case 'message':
-                            addMessage(processedContent[0], "received", null, targetChatBody);
+                            addMessage(processedContent[0], "received");
                             await new Promise(r => setTimeout(r, 500)); // Small delay for "reading"
                             // Find next connection and continue
-                            const msgConnection = allConnections.find(c => c.from === currentNode.id);
-                            console.log(`Message node (${currentNode.id}) connections found:`, allConnections.filter(c => c.from === currentNode.id));
+                            const msgConnection = connections.find(c => c.from === currentNode.id);
+                            console.log(`Message node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
                             if (msgConnection) {
                                 console.log(`Found message connection to: ${msgConnection.to}`);
-                                await simulateFlow(msgConnection.to, targetChatBody, allNodes, allConnections);
+                                await simulateFlow(msgConnection.to);
                             }
                             else {
                                 console.log("No connection found for message node. Flow terminated.");
-                                addMessage("Nó 'Mensagem' não conectado. Fluxo terminou.", "received", null, targetChatBody);
+                                addMessage("Nó 'Mensagem' não conectado. Fluxo terminou.", "received");
                             }
                             break;
 
                         case 'image':
-                            addMessage("Enviando imagem...", "received", processedContent[0], targetChatBody);
+                            addMessage("Enviando imagem...", "received", processedContent[0]);
                             await new Promise(r => setTimeout(r, 1000)); // Small delay for "loading"
-                            const imgConnection = allConnections.find(c => c.from === currentNode.id);
-                            console.log(`Image node (${currentNode.id}) connections found:`, allConnections.filter(c => c.from === currentNode.id));
+                            const imgConnection = connections.find(c => c.from === currentNode.id);
+                            console.log(`Image node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
                             if (imgConnection) {
                                 console.log(`Found image connection to: ${imgConnection.to}`);
-                                await simulateFlow(imgConnection.to, targetChatBody, allNodes, allConnections);
+                                await simulateFlow(imgConnection.to);
                             }
                             else {
                                 console.log("No connection found for image node. Flow terminated.");
-                                addMessage("Nó 'Imagem' não conectado. Fluxo terminou.", "received", null, targetChatBody);
+                                addMessage("Nó 'Imagem' não conectado. Fluxo terminou.", "received");
                             }
                             break;
 
                         case 'question':
                             const questionText = processedContent[0];
-                            const choiceSelected = await waitForUserChoice(['Sim', 'Não'], targetChatBody);
-                            addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent', null, targetChatBody); // User's answer
+                            const choiceSelected = await waitForUserChoice(['Sim', 'Não']);
+                            addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent'); // User's answer
 
                             // Find next connection based on choice
                             const questionChoice = (choiceSelected === 0) ? 'yes' : 'no';
-                            const questionConnection = allConnections.find(c => c.from === currentNode.id && c.choice === questionChoice);
-                            console.log(`Question node (${currentNode.id}) connections for choice '${questionChoice}':`, allConnections.filter(c => c.from === currentNode.id && c.choice === questionChoice));
+                            const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === questionChoice);
+                            console.log(`Question node (${currentNode.id}) connections for choice '${questionChoice}':`, connections.filter(c => c.from === currentNode.id && c.choice === questionChoice));
                             if (questionConnection) {
                                 console.log(`Found question connection to: ${questionConnection.to}`);
-                                await simulateFlow(questionConnection.to, targetChatBody, allNodes, allConnections);
+                                await simulateFlow(questionConnection.to);
                             }
                             else {
                                 console.log(`No connection found for question node choice '${questionChoice}'. Flow terminated.`);
@@ -1807,16 +1809,16 @@
                             const mcQuestionText = processedContent[0];
                             const mcOptions = processedContent.slice(1);
                             
-                            addMessage(mcQuestionText, "received", null, targetChatBody);
-                            const mcChoiceIndex = await waitForUserChoice(mcOptions, targetChatBody);
-                            addMessage(mcOptions[mcChoiceIndex], 'sent', null, targetChatBody); // User's answer
+                            addMessage(mcQuestionText, "received");
+                            const mcChoiceIndex = await waitForUserChoice(mcOptions);
+                            addMessage(mcOptions[mcChoiceIndex], 'sent'); // User's answer
 
                             // Find next connection based on choice index
-                            const mcConnection = allConnections.find(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex);
-                            console.log(`Multiple Choice node (${currentNode.id}) connections for choice index '${mcChoiceIndex}':`, allConnections.filter(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex));
+                            const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex);
+                            console.log(`Multiple Choice node (${currentNode.id}) connections for choice index '${mcChoiceIndex}':`, connections.filter(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex));
                             if (mcConnection) {
                                 console.log(`Found multiple choice connection to: ${mcConnection.to}`);
-                                await simulateFlow(mcConnection.to, targetChatBody, allNodes, allConnections);
+                                await simulateFlow(mcConnection.to);
                             }
                             else {
                                 console.log(`No connection found for multiple choice node choice index '${mcChoiceIndex}'. Flow terminated.`);
@@ -1827,39 +1829,39 @@
                         case 'userInput':
                             const inputPrompt = processedContent[0];
                             const variableName = processedContent[1] || 'user_input'; // Default variable name
-                            const userInput = await waitForUserInput(inputPrompt, targetChatBody);
-                            addMessage(userInput, 'sent', null, targetChatBody); // Show user input
+                            const userInput = await waitForUserInput(inputPrompt);
+                            addMessage(userInput, 'sent'); // Show user input
                             flowVariables[variableName] = userInput; // Store input
                             console.log(`User input for variable '${variableName}': ${userInput}`);
                             
-                            const userInputConnection = allConnections.find(c => c.from === currentNode.id);
-                            console.log(`User Input node (${currentNode.id}) connections found:`, allConnections.filter(c => c.from === currentNode.id));
+                            const userInputConnection = connections.find(c => c.from === currentNode.id);
+                            console.log(`User Input node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
                             if (userInputConnection) {
                                 console.log(`Found user input connection to: ${userInputConnection.to}`);
-                                await simulateFlow(userInputConnection.to, targetChatBody, allNodes, allConnections);
+                                await simulateFlow(userInputConnection.to);
                             }
                             else {
                                 console.log("No connection found for user input node. Flow terminated.");
-                                addMessage("Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", "received", null, targetChatBody);
+                                addMessage("Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", "received");
                             }
                             break;
 
                         case 'delay':
                             const delayMs = parseInt(processedContent[0] || '1500', 10);
-                            const indicator = addTypingIndicator(targetChatBody);
+                            const indicator = addTypingIndicator();
                             console.log(`Delaying for ${delayMs}ms...`);
                             await new Promise(r => setTimeout(r, delayMs));
                             removeTypingIndicator(indicator);
                             
-                            const delayConnection = allConnections.find(c => c.from === currentNode.id);
-                            console.log(`Delay node (${currentNode.id}) connections found:`, allConnections.filter(c => c.from === currentNode.id));
+                            const delayConnection = connections.find(c => c.from === currentNode.id);
+                            console.log(`Delay node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
                             if (delayConnection) {
                                 console.log(`Found delay connection to: ${delayConnection.to}`);
-                                await simulateFlow(delayConnection.to, targetChatBody, allNodes, allConnections);
+                                await simulateFlow(delayConnection.to);
                             }
                             else {
                                 console.log("No connection found for delay node. Flow terminated.");
-                                addMessage("Nó 'Atraso' não conectado. Fluxo terminou.", "received", null, targetChatBody);
+                                addMessage("Nó 'Atraso' não conectado. Fluxo terminou.", "received");
                             }
                             break;
 
@@ -1874,14 +1876,14 @@
                             ctaButton.textContent = ctaText;
                             ctaButton.target = '_blank'; // Open in new tab
                             ctaContainer.appendChild(ctaButton);
-                            targetChatBody.appendChild(ctaContainer);
-                            targetChatBody.scrollTop = targetChatBody.scrollHeight;
-                            addMessage("Fluxo concluído! Clique no botão final.", "received", null, targetChatBody);
+                            previewChatBody.appendChild(ctaContainer);
+                            scrollToBottom();
+                            addMessage("Fluxo concluído! Clique no botão final.", "received");
                             console.log("CTA node reached. Flow finished.");
                             break;
 
                         default:
-                            addMessage(`Tipo de nó desconhecido: ${currentNode.type}. Fluxo terminado.`, "received", null, targetChatBody);
+                            addMessage(`Tipo de nó desconhecido: ${currentNode.type}. Fluxo terminado.`, "received");
                             console.log(`Unknown node type: ${currentNode.type}. Flow terminated.`);
                             break;
                     }
@@ -1891,9 +1893,10 @@
                 }
             }
 
-            // Start flow simulation (for preview panel)
+            // Start flow simulation
             runFlowBtn.addEventListener('click', async () => {
                 previewChatBody.innerHTML = ''; // Clear preview chat
+                simulationMessages = []; // Clear messages for static HTML export
                 flowVariables = {}; // Reset flow variables
                 
                 // Find start node
@@ -1903,54 +1906,202 @@
                     return;
                 }
                 
-                addMessage("Simulação do fluxo iniciada.", "received", null, previewChatBody);
+                addMessage("Simulação do fluxo iniciada.", "received");
                 await new Promise(r => setTimeout(r, 1000)); // Small delay before starting actual flow
                 console.log("Starting flow. Initial connections:", connections);
-                simulateFlow(startNode.id, previewChatBody, nodes, connections); // Start simulation from start node
+                simulateFlow(startNode.id); // Start simulation from start node
             });
 
-            // --- NEW: GENERATE AND DOWNLOAD FUNCTIONAL CHAT HTML ---
-            downloadHtmlBtn.addEventListener('click', () => {
-                const dataToExport = {
-                    nodes: Object.values(nodes).map(n => ({
-                        id: n.id,
-                        type: n.type,
-                        x: n.x, // X and Y are not strictly needed for runtime but good for debugging
-                        y: n.y,
-                        content: n.content
-                    })),
-                    connections: connections.map(c => ({
-                        from: c.from,
-                        to: c.to,
-                        choice: c.choice
-                    })),
-                    botSettings: {
-                        name: botNameInput.value,
-                        profilePic: botProfilePicInput.value
-                    }
-                };
-                const chatHtmlContent = generateStandaloneChatHtml(dataToExport);
-                const blob = new Blob([chatHtmlContent], { type: 'text/html' });
+            // --- NEW: GENERATE AND DOWNLOAD CHAT HTML ---
+            downloadHtmlBtn.addEventListener('click', async () => {
+                // First, run a simulation to capture messages for the static HTML
+                previewChatBody.innerHTML = ''; // Clear preview chat
+                simulationMessages = []; // Reset messages for export
+                flowVariables = {}; // Reset variables for export simulation
+
+                const startNode = Object.values(nodes).find(node => node.type === 'start');
+                if (!startNode) {
+                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo para gerar HTML.');
+                    return;
+                }
+
+                // Run a headless simulation to collect messages
+                await simulateFlowForHtmlExport(startNode.id);
+
+                const chatHtml = generateChatHtmlContent(simulationMessages, botNameInput.value, botProfilePicInput.value);
+                const blob = new Blob([chatHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'zapflow_chat_funnel.html';
+                a.download = 'zapflow_chat_preview.html';
                 a.click();
                 URL.revokeObjectURL(url);
-                showAlertModal('Sucesso!', 'Funil de chat funcional exportado como "zapflow_chat_funnel.html".');
+                showAlertModal('Sucesso!', 'Pré-visualização do chat exportada como "zapflow_chat_preview.html".');
             });
 
             /**
-             * Generates the full standalone HTML content for the interactive chat.
-             * This HTML will contain all necessary CSS and JS to run the flow.
-             * @param {object} flowData - Object containing nodes, connections, and bot settings.
-             * @returns {string} The complete HTML string for the standalone chat.
+             * Simulates the flow to collect messages for HTML export.
+             * This version does not interact with the DOM, only collects data.
+             * It makes assumptions for user input and multiple choices to create a linear path.
+             * @param {string} currentNodeId - The ID of the current node to be processed.
+             * @param {object} currentFlowVariables - Current state of flow variables.
+             * @returns {Promise<void>}
              */
-            function generateStandaloneChatHtml(flowData) {
+            async function simulateFlowForHtmlExport(currentNodeId, currentFlowVariables = {}, messages = []) {
+                const currentNode = nodes[currentNodeId];
+                if (!currentNode) {
+                    messages.push({ text: "Fluxo terminado ou nó inválido alcançado.", type: "received" });
+                    return;
+                }
+
+                // Replace variables in node content before processing
+                let processedContent = currentNode.content.map(c => {
+                    let text = c;
+                    for (const key in currentFlowVariables) {
+                        text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), currentFlowVariables[key]);
+                    }
+                    return text;
+                });
+
+                switch (currentNode.type) {
+                    case 'start':
+                        const startConnection = connections.find(c => c.from === currentNode.id);
+                        if (startConnection) {
+                            await simulateFlowForHtmlExport(startConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'end':
+                        messages.push({ text: "Fluxo finalizado.", type: "received" });
+                        return;
+
+                    case 'message':
+                        messages.push({ text: processedContent[0], type: "received" });
+                        const msgConnection = connections.find(c => c.from === currentNode.id);
+                        if (msgConnection) {
+                            await simulateFlowForHtmlExport(msgConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Mensagem' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'image':
+                        messages.push({ text: "Enviando imagem...", type: "received", imageUrl: processedContent[0] });
+                        const imgConnection = connections.find(c => c.from === currentNode.id);
+                        if (imgConnection) {
+                            await simulateFlowForHtmlExport(imgConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Imagem' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'question':
+                        const questionText = processedContent[0];
+                        messages.push({ text: questionText, type: "received" });
+                        // For static export, assume "Sim" (choice 0)
+                        const assumedQuestionChoice = 'yes';
+                        messages.push({ text: 'Sim', type: 'sent' });
+
+                        const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === assumedQuestionChoice);
+                        if (questionConnection) {
+                            await simulateFlowForHtmlExport(questionConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: `Nenhuma conexão definida para a opção "Sim". Fluxo terminou.`, type: "received" });
+                        }
+                        break;
+
+                    case 'multipleChoice':
+                        const mcQuestionText = processedContent[0];
+                        const mcOptions = processedContent.slice(1);
+                        messages.push({ text: mcQuestionText, type: "received" });
+                        // For static export, assume the first option (choice 0)
+                        const assumedMcChoiceIndex = 0;
+                        if (mcOptions[assumedMcChoiceIndex]) {
+                            messages.push({ text: mcOptions[assumedMcChoiceIndex], type: 'sent' });
+                        } else {
+                            messages.push({ text: 'Nenhuma opção disponível.', type: 'sent' });
+                        }
+
+                        const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === assumedMcChoiceIndex);
+                        if (mcConnection) {
+                            await simulateFlowForHtmlExport(mcConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: `Nenhuma conexão definida para a primeira opção. Fluxo terminou.`, type: "received" });
+                        }
+                        break;
+
+                    case 'userInput':
+                        const inputPrompt = processedContent[0];
+                        const variableName = processedContent[1] || 'user_input';
+                        messages.push({ text: inputPrompt, type: "received" });
+                        const assumedUserInput = `[Resposta do Usuário para ${variableName}]`; // Placeholder for static export
+                        messages.push({ text: assumedUserInput, type: 'sent' });
+                        currentFlowVariables[variableName] = assumedUserInput; // Update variables for subsequent nodes
+
+                        const userInputConnection = connections.find(c => c.from === currentNode.id);
+                        if (userInputConnection) {
+                            await simulateFlowForHtmlExport(userInputConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'delay':
+                        // Delays are skipped for static HTML export, but we can add a message
+                        messages.push({ text: `[Pausa de ${processedContent[0] || '1500'}ms]`, type: "received" });
+                        const delayConnection = connections.find(c => c.from === currentNode.id);
+                        if (delayConnection) {
+                            await simulateFlowForHtmlExport(delayConnection.to, currentFlowVariables, messages);
+                        } else {
+                            messages.push({ text: "Nó 'Atraso' não conectado. Fluxo terminou.", type: "received" });
+                        }
+                        break;
+
+                    case 'cta':
+                        const ctaText = processedContent[0] || 'Visitar Link';
+                        const ctaUrl = processedContent[1] || '#';
+                        messages.push({ text: "Fluxo concluído! Clique no botão final.", type: "received" });
+                        messages.push({ cta: { text: ctaText, url: ctaUrl }, type: "cta" }); // Special type for CTA
+                        break;
+
+                    default:
+                        messages.push({ text: `Tipo de nó desconhecido: ${currentNode.type}. Fluxo terminado.`, type: "received" });
+                        break;
+                }
+                // The `messages` array is modified by reference, so no return needed.
+            }
+
+            /**
+             * Generates the full HTML content for the chat preview.
+             * @param {Array<object>} messages - Array of message objects (from simulateFlowForHtmlExport).
+             * @param {string} botName - The bot's name.
+             * @param {string} botAvatar - The bot's avatar URL.
+             * @returns {string} The complete HTML string.
+             */
+            function generateChatHtmlContent(messages, botName, botAvatar) {
+                const chatMessagesHtml = messages.map(msg => {
+                    if (msg.type === 'cta') {
+                        return `
+                            <div class="cta-button-container">
+                                <a class="cta-button" href="${msg.cta.url}" target="_blank">${msg.cta.text}</a>
+                            </div>
+                        `;
+                    }
+                    const imgHtml = msg.imageUrl ? `<img src="${msg.imageUrl}" onerror="this.onerror=null;this.src='https://placehold.co/150x100/CCCCCC/000000?text=Imagem+N%C3%A3o+Encontrada';">` : '';
+                    return `
+                        <div class="message ${msg.type}">
+                            ${imgHtml}<span>${msg.text.replace(/\n/g, '<br>')}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                // Extract the relevant CSS for the chat preview
                 const chatCss = `
                     body {
                         font-family: 'Roboto', sans-serif;
-                        background-color: #f0f0f0;
+                        background-color: #f0f0f0; /* Lighter background for standalone chat */
                         display: flex;
                         justify-content: center;
                         align-items: center;
@@ -1959,8 +2110,7 @@
                     }
                     .mobile-preview {
                         width: 100%; max-width: 380px; height: 90vh; background-color: #111;
-                        border-radius: 40px; border: none; /* No border for standalone */
-                        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                        border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
                         display: flex; flex-direction: column; overflow: hidden;
                     }
                     .chat-header {
@@ -1979,11 +2129,6 @@
                     .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
                     .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
                     .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-                    .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
-                    .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
-                    .typing-indicator span:nth-child(2) { animation-delay: 0.1s; }
-                    .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
-                    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
                     .choice-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 5px 10px; align-self: flex-end; }
                     .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: background-color 0.2s, color 0.2s; }
                     .choice-button:hover { background-color: #075E54; color: white; }
@@ -1995,16 +2140,13 @@
                     .user-input-container button { padding: 8px 15px; border-radius: 20px; border: none; background-color: #075E54; color: white; cursor: pointer; }
                 `;
 
-                // Serialize the flow data into a JSON string
-                const serializedFlowData = JSON.stringify(flowData);
-
                 return `
                     <!DOCTYPE html>
                     <html lang="pt-BR">
                     <head>
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>ZAPFLOW Chat Funnel</title>
+                        <title>ZAPFLOW Chat Preview</title>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
                         <style>
                             ${chatCss}
@@ -2013,316 +2155,16 @@
                     <body>
                         <div class="mobile-preview">
                             <div class="chat-header">
-                                <img id="chat-bot-avatar" src="${flowData.botSettings.profilePic}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
+                                <img src="${botAvatar}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
                                 <div class="contact-info">
-                                    <div id="chat-bot-name" class="name">${flowData.botSettings.name}</div>
+                                    <div class="name">${botName}</div>
                                     <div class="status">online</div>
                                 </div>
                             </div>
-                            <div class="chat-body" id="chat-body"></div>
+                            <div class="chat-body">
+                                ${chatMessagesHtml}
+                            </div>
                         </div>
-
-                        <script>
-                            document.addEventListener('DOMContentLoaded', () => {
-                                const chatBody = document.getElementById('chat-body');
-                                const botNameEl = document.getElementById('chat-bot-name');
-                                const botAvatarEl = document.getElementById('chat-bot-avatar');
-
-                                // Embedded flow data
-                                const flowData = ${serializedFlowData};
-                                const nodes = {};
-                                flowData.nodes.forEach(n => {
-                                    nodes[n.id] = n;
-                                });
-                                const connections = flowData.connections;
-                                const botSettings = flowData.botSettings;
-
-                                let flowVariables = {}; // Stores user variables during simulation
-
-                                // Update bot info in the standalone chat
-                                botNameEl.textContent = botSettings.name;
-                                botAvatarEl.src = botSettings.profilePic;
-                                botAvatarEl.onerror = function() {
-                                    this.onerror=null;
-                                    this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';
-                                };
-
-                                /**
-                                 * Adds a message to the chat body.
-                                 * @param {string} text - The message text.
-                                 * @param {string} type - 'received' for bot messages, 'sent' for user messages.
-                                 * @param {string} [imageUrl] - Image URL if it's an image message.
-                                 */
-                                function addMessage(text, type, imageUrl = null) {
-                                    const messageDiv = document.createElement('div');
-                                    messageDiv.className = \`message \${type}\`;
-                                    if (imageUrl) {
-                                        const img = document.createElement('img');
-                                        img.src = imageUrl;
-                                        img.onerror = function() {
-                                            this.onerror=null;
-                                            this.src='https://placehold.co/150x100/CCCCCC/000000?text=Imagem+N%C3%A3o+Encontrada';
-                                        };
-                                        messageDiv.appendChild(img);
-                                    }
-                                    messageDiv.innerHTML += \`<span>\${text.replace(/\\n/g, '<br>')}<\/span>\`;
-                                    chatBody.appendChild(messageDiv);
-                                    scrollToBottom();
-                                }
-
-                                /**
-                                 * Adds a typing indicator to the chat.
-                                 * @returns {HTMLElement} The indicator element.
-                                 */
-                                function addTypingIndicator() {
-                                    const indicator = document.createElement('div');
-                                    indicator.className = 'typing-indicator';
-                                    indicator.innerHTML = '<span><\/span><span><\/span><span><\/span>';
-                                    chatBody.appendChild(indicator);
-                                    scrollToBottom();
-                                    return indicator;
-                                }
-
-                                /**
-                                 * Removes a typing indicator from the chat.
-                                 * @param {HTMLElement} indicatorEl - The indicator element to be removed.
-                                 */
-                                function removeTypingIndicator(indicatorEl) {
-                                    if (indicatorEl) {
-                                        indicatorEl.remove();
-                                    }
-                                }
-
-                                /**
-                                 * Auto-scrolls the chat to the bottom.
-                                 */
-                                function scrollToBottom() {
-                                    chatBody.scrollTop = chatBody.scrollHeight;
-                                }
-
-                                /**
-                                 * Waits for user choice via buttons.
-                                 * @param {Array<string>} choices - Array of option texts.
-                                 * @returns {Promise<number>} A promise that resolves with the index of the selected choice.
-                                 */
-                                function waitForUserChoice(choices) {
-                                    return new Promise(resolve => {
-                                        const choiceContainer = document.createElement('div');
-                                        choiceContainer.className = 'choice-container';
-                                        choices.forEach((choiceText, index) => {
-                                            const button = document.createElement('button');
-                                            button.className = 'choice-button';
-                                            let processedChoiceText = choiceText;
-                                            for (const key in flowVariables) {
-                                                processedChoiceText = processedChoiceText.replace(new RegExp(\`\\\\{\\\\{\${key}\\\\}\\\}\`, 'g'), flowVariables[key]);
-                                            }
-                                            button.textContent = processedChoiceText;
-                                            button.onclick = () => {
-                                                choiceContainer.remove();
-                                                resolve(index);
-                                            };
-                                            choiceContainer.appendChild(button);
-                                        });
-                                        chatBody.appendChild(choiceContainer);
-                                        scrollToBottom();
-                                    });
-                                }
-
-                                /**
-                                 * Waits for user text input.
-                                 * @param {string} promptText - The question text for the user.
-                                 * @returns {Promise<string>} A promise that resolves with the text entered by the user.
-                                 */
-                                function waitForUserInput(promptText) {
-                                    return new Promise(resolve => {
-                                        let processedPromptText = promptText;
-                                        for (const key in flowVariables) {
-                                            processedPromptText = processedPromptText.replace(new RegExp(\`\\\\{\\\\{\${key}\\\\}\\\}\`, 'g'), flowVariables[key]);
-                                        }
-                                        addMessage(processedPromptText, "received");
-
-                                        const inputContainer = document.createElement('div');
-                                        inputContainer.className = 'user-input-container';
-                                        const inputField = document.createElement('input');
-                                        inputField.type = 'text';
-                                        inputField.placeholder = 'Digite sua resposta...';
-                                        const sendButton = document.createElement('button');
-                                        sendButton.textContent = 'Enviar';
-
-                                        sendButton.onclick = () => {
-                                            const userText = inputField.value.trim();
-                                            if (userText) {
-                                                inputContainer.remove();
-                                                resolve(userText);
-                                            }
-                                        };
-                                        inputField.addEventListener('keypress', (e) => {
-                                            if (e.key === 'Enter') {
-                                                sendButton.click();
-                                            }
-                                        });
-
-                                        inputContainer.appendChild(inputField);
-                                        inputContainer.appendChild(sendButton);
-                                        chatBody.appendChild(inputContainer);
-                                        scrollToBottom();
-                                        inputField.focus();
-                                    });
-                                }
-
-                                /**
-                                 * Simulates chat flow.
-                                 * @param {string} currentNodeId - The ID of the current node to be processed.
-                                 */
-                                async function simulateFlowRuntime(currentNodeId) {
-                                    const currentNode = nodes[currentNodeId];
-                                    if (!currentNode) {
-                                        addMessage("Fluxo terminado ou nó inválido alcançado.", "received");
-                                        return;
-                                    }
-                                    console.log(\`Simulating node: \${currentNodeId}, Type: \${currentNode.type}\`);
-
-                                    try {
-                                        let processedContent = currentNode.content.map(c => {
-                                            let text = c;
-                                            for (const key in flowVariables) {
-                                                text = text.replace(new RegExp(\`\\\\{\\\\{\${key}\\\\}\\\}\`, 'g'), flowVariables[key]);
-                                            }
-                                            return text;
-                                        });
-
-                                        switch (currentNode.type) {
-                                            case 'start':
-                                                const startConnection = connections.find(c => c.from === currentNode.id);
-                                                if (startConnection) {
-                                                    await simulateFlowRuntime(startConnection.to);
-                                                } else {
-                                                    addMessage("Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", "received");
-                                                }
-                                                break;
-
-                                            case 'end':
-                                                addMessage("Fluxo finalizado.", "received");
-                                                return;
-
-                                            case 'message':
-                                                addMessage(processedContent[0], "received");
-                                                await new Promise(r => setTimeout(r, 500));
-                                                const msgConnection = connections.find(c => c.from === currentNode.id);
-                                                if (msgConnection) {
-                                                    await simulateFlowRuntime(msgConnection.to);
-                                                } else {
-                                                    addMessage("Nó 'Mensagem' não conectado. Fluxo terminou.", "received");
-                                                }
-                                                break;
-
-                                            case 'image':
-                                                addMessage("Enviando imagem...", "received", processedContent[0]);
-                                                await new Promise(r => setTimeout(r, 1000));
-                                                const imgConnection = connections.find(c => c.from === currentNode.id);
-                                                if (imgConnection) {
-                                                    await simulateFlowRuntime(imgConnection.to);
-                                                } else {
-                                                    addMessage("Nó 'Imagem' não conectado. Fluxo terminou.", "received");
-                                                }
-                                                break;
-
-                                            case 'question':
-                                                const questionText = processedContent[0];
-                                                const choiceSelected = await waitForUserChoice(['Sim', 'Não']);
-                                                addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent');
-
-                                                const questionChoice = (choiceSelected === 0) ? 'yes' : 'no';
-                                                const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === questionChoice);
-                                                if (questionConnection) {
-                                                    await simulateFlowRuntime(questionConnection.to);
-                                                } else {
-                                                    addMessage(\`Nenhuma conexão definida para a opção "\${questionChoice === 'yes' ? 'Sim' : 'Não'}". Fluxo terminou.\`, "received");
-                                                }
-                                                break;
-
-                                            case 'multipleChoice':
-                                                const mcQuestionText = processedContent[0];
-                                                const mcOptions = processedContent.slice(1);
-                                                
-                                                addMessage(mcQuestionText, "received");
-                                                const mcChoiceIndex = await waitForUserChoice(mcOptions);
-                                                addMessage(mcOptions[mcChoiceIndex], 'sent');
-
-                                                const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex);
-                                                if (mcConnection) {
-                                                    await simulateFlowRuntime(mcConnection.to);
-                                                } else {
-                                                    addMessage(\`Nenhuma conexão definida para a opção "\${mcOptions[mcChoiceIndex]}". Fluxo terminou.\`, "received");
-                                                }
-                                                break;
-
-                                            case 'userInput':
-                                                const inputPrompt = processedContent[0];
-                                                const variableName = processedContent[1] || 'user_input';
-                                                const userInput = await waitForUserInput(inputPrompt);
-                                                addMessage(userInput, 'sent');
-                                                flowVariables[variableName] = userInput;
-                                                console.log(\`User input for variable '\${variableName}': \${userInput}\`);
-                                                
-                                                const userInputConnection = connections.find(c => c.from === currentNode.id);
-                                                if (userInputConnection) {
-                                                    await simulateFlowRuntime(userInputConnection.to);
-                                                } else {
-                                                    addMessage("Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", "received");
-                                                }
-                                                break;
-
-                                            case 'delay':
-                                                const delayMs = parseInt(processedContent[0] || '1500', 10);
-                                                const indicator = addTypingIndicator();
-                                                await new Promise(r => setTimeout(r, delayMs));
-                                                removeTypingIndicator(indicator);
-                                                
-                                                const delayConnection = connections.find(c => c.from === currentNode.id);
-                                                if (delayConnection) {
-                                                    await simulateFlowRuntime(delayConnection.to);
-                                                } else {
-                                                    addMessage("Nó 'Atraso' não conectado. Fluxo terminou.", "received");
-                                                }
-                                                break;
-
-                                            case 'cta':
-                                                const ctaText = processedContent[0] || 'Visitar Link';
-                                                const ctaUrl = processedContent[1] || '#';
-                                                const ctaContainer = document.createElement('div');
-                                                ctaContainer.className = 'cta-button-container';
-                                                const ctaButton = document.createElement('a');
-                                                ctaButton.className = 'cta-button';
-                                                ctaButton.href = ctaUrl;
-                                                ctaButton.textContent = ctaText;
-                                                ctaButton.target = '_blank';
-                                                ctaContainer.appendChild(ctaButton);
-                                                chatBody.appendChild(ctaContainer);
-                                                scrollToBottom();
-                                                addMessage("Fluxo concluído! Clique no botão final.", "received");
-                                                break;
-
-                                            default:
-                                                addMessage(\`Tipo de nó desconhecido: \${currentNode.type}. Fluxo terminado.\`, "received");
-                                                break;
-                                        }
-                                    } catch (error) {
-                                        console.error("Erro durante a simulação do fluxo:", error);
-                                        addMessage('Ocorreu um erro durante a simulação do fluxo. Verifique suas conexões e conteúdos.', 'received');
-                                    }
-                                }
-
-                                // Start the chat funnel when the standalone HTML loads
-                                const startNode = Object.values(nodes).find(node => node.type === 'start');
-                                if (startNode) {
-                                    addMessage("Iniciando o funil de chat...", "received");
-                                    setTimeout(() => simulateFlowRuntime(startNode.id), 1000);
-                                } else {
-                                    addMessage("Nenhum nó de 'Início' encontrado no fluxo. O funil não pode ser iniciado.", "received");
-                                }
-                            });
-                        </script>
                     </body>
                     </html>
                 `;

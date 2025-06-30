@@ -173,7 +173,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            pointer-events: none; /* Allows clicks to pass through to elements below */
         }
 
         /* --- BLOCOS NO CANVAS --- */
@@ -189,13 +189,18 @@
             transition: box-shadow 0.3s, border-color 0.3s;
             display: flex;
             flex-direction: column;
-            z-index: 5; /* Ensure nodes are above SVG lines */
+            z-index: 5; /* Ensure nodes are above SVG lines by default */
         }
         .flow-node.selected {
             border-color: var(--primary-accent);
             box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
             z-index: 6; /* Bring selected node to front */
         }
+        /* New: Z-index for actively dragged node to prevent visual "duplication" */
+        .flow-node.dragging {
+            z-index: 100 !important; 
+        }
+
         .node-header {
             background-color: #2c3e50;
             color: var(--text-light);
@@ -244,7 +249,7 @@
             position: absolute;
             cursor: crosshair;
             transition: background-color 0.3s;
-            z-index: 10;
+            z-index: 10; /* Keep connectors on top of node content */
         }
         .connector:hover { background-color: var(--primary-accent); }
         .connector.output { right: -8px; }
@@ -421,6 +426,7 @@
 
         <div id="canvas-container">
             <div id="flow-canvas">
+                <!-- A camada SVG agora está DENTRO do flow-canvas para herdar transformações -->
                 <svg id="svg-layer">
                     <!-- Definição da ponta de seta para as linhas de conexão -->
                     <defs>
@@ -429,6 +435,7 @@
                         </marker>
                     </defs>
                 </svg>
+                <!-- Os nós serão adicionados aqui como filhos diretos do flow-canvas -->
             </div>
         </div>
 
@@ -558,7 +565,7 @@
             const sidePanel = document.getElementById('side-panel'),
                 canvasContainer = document.getElementById('canvas-container'),
                 flowCanvas = document.getElementById('flow-canvas'),
-                svgLayer = document.getElementById('svg-layer'),
+                svgLayer = document.getElementById('svg-layer'), // svgLayer agora é filho de flowCanvas
                 runFlowBtn = document.getElementById('run-flow-btn'),
                 clearFlowBtn = document.getElementById('clear-flow-btn'),
                 downloadHtmlBtn = document.getElementById('download-html-btn'),
@@ -582,6 +589,7 @@
                 const newScale = oldScale * (e.deltaY > 0 ? 0.9 : 1.1);
                 pan.scale = Math.max(0.2, Math.min(newScale, 2));
 
+                // Ajusta o pan para que o zoom seja no ponto do mouse
                 pan.x = mouseX - (mouseX - pan.x) * (pan.scale / oldScale);
                 pan.y = mouseY - (mouseY - pan.y) * (pan.scale / oldScale);
                 
@@ -589,21 +597,21 @@
             });
 
             canvasContainer.addEventListener('mousedown', (e) => {
-                // Apenas pan se clicar no fundo do canvas ou na camada SVG
-                if (e.target !== canvasContainer && e.target !== flowCanvas && e.target !== svgLayer) {
-                    // Se estiver clicando em um nó, seleciona ele
+                // Se o clique for em um nó ou em um conector, não inicie o pan do canvas.
+                if (e.target.closest('.flow-node')) {
                     const clickedNode = e.target.closest('.flow-node');
-                    if (clickedNode) {
+                    // Somente seleciona o nó se o clique não for em um input/textarea/conector,
+                    // caso contrário, permite a interação com o elemento filho.
+                    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT' && !e.target.classList.contains('connector')) {
                         selectNode(clickedNode.id);
-                    } else {
-                        selectNode(null); // Deseleciona se clicar em qualquer outro lugar que não seja um nó
                     }
-                    return; // Retorna para que o pan não seja ativado ao clicar em um nó ou elemento de nó
+                    return; // Permite que o makeNodeDraggable ou handleConnectorClick lidem com o evento
                 }
+                
+                selectNode(null); // Desseleciona qualquer nó ao iniciar a panorâmica do canvas
                 pan.isPanning = true;
                 pan.startX = e.clientX;
                 pan.startY = e.clientY;
-                selectNode(null); // Desseleciona qualquer nó ao iniciar a panorâmica do canvas
             });
 
             canvasContainer.addEventListener('mousemove', (e) => {
@@ -620,10 +628,12 @@
 
             function updateCanvasTransform() {
                 flowCanvas.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${pan.scale})`;
-                redrawAllConnections(); // Redesenha as conexões na panorâmica/zoom
+                // Como svgLayer é filho de flowCanvas, ele já herda a transformação.
+                // Apenas redesenhar as linhas é necessário para suas posições.
+                redrawAllConnections(); 
             }
 
-            // Converte coordenadas da tela para coordenadas do canvas
+            // Converte coordenadas da tela para coordenadas do canvas (não transformado)
             function toCanvasCoords(e) {
                 const rect = canvasContainer.getBoundingClientRect();
                 return {
@@ -768,7 +778,7 @@
                     }
                 }
 
-                flowCanvas.appendChild(nodeEl);
+                flowCanvas.appendChild(nodeEl); // Adiciona o nó diretamente ao flowCanvas
 
                 // Inicializa ou atualiza os dados do nó
                 nodes[nodeId] = {
@@ -935,6 +945,7 @@
 
                 const onMouseUp = () => {
                     isDraggingNode = false;
+                    nodeEl.classList.remove('dragging'); // Remove a classe dragging
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                     saveState(); // Salva o estado após o arraste
@@ -948,6 +959,7 @@
                     e.preventDefault(); // Previne o comportamento de arraste padrão do navegador no mousedown
                     selectNode(nodeEl.id); // Seleciona o nó clicado
                     isDraggingNode = true;
+                    nodeEl.classList.add('dragging'); // Adiciona a classe dragging
                     // Calcula o offset do clique dentro do nó para um arraste suave
                     dragOffsetX = (e.clientX - canvasContainer.getBoundingClientRect().left - pan.x) / pan.scale - nodes[nodeEl.id].x;
                     dragOffsetY = (e.clientY - canvasContainer.getBoundingClientRect().top - pan.y) / pan.scale - nodes[nodeEl.id].y;
@@ -958,14 +970,13 @@
             }
             
             /**
-             * Obtém a posição absoluta de um conector no canvas.
+             * Obtém a posição absoluta de um conector no canvas (relativa ao flowCanvas).
              * @param {HTMLElement} connectorEl - O elemento do conector.
              * @returns {{x: number, y: number}} As coordenadas X e Y.
              */
             function getConnectorPosition(connectorEl) {
                 const nodeEl = connectorEl.closest('.flow-node');
-                // Posição do nó + posição do conector dentro do nó + metade do tamanho do conector
-                // Essas são coordenadas relativas ao flowCanvas, que é o pai da svgLayer e dos nós.
+                // As coordenadas já são relativas ao flowCanvas, pois svgLayer também é filho.
                 return {
                     x: nodeEl.offsetLeft + connectorEl.offsetLeft + connectorEl.offsetWidth / 2,
                     y: nodeEl.offsetTop + connectorEl.offsetTop + connectorEl.offsetHeight / 2
@@ -1061,7 +1072,7 @@
              */
             function onDrawingConnection(e) {
                 if (!currentTempLine) return; // Garante que a linha temporária existe
-                const coords = toCanvasCoords(e); // Converte para coordenadas do canvas
+                const coords = toCanvasCoords(e); // Converte para coordenadas do canvas (não transformado)
                 currentTempLine.setAttribute('x2', coords.x);
                 currentTempLine.setAttribute('y2', coords.y);
             }
@@ -1143,7 +1154,8 @@
                 const startPos = getConnectorPosition(fromConnector);
                 const endPos = getConnectorPosition(toConnector);
 
-                // Aplica pan e zoom do canvas às coordenadas da linha
+                // As coordenadas já estão no espaço do flowCanvas (não transformado),
+                // pois o svgLayer é filho e herda o transform.
                 conn.lineEl.setAttribute('x1', startPos.x);
                 conn.lineEl.setAttribute('y1', startPos.y);
                 conn.lineEl.setAttribute('x2', endPos.x);
@@ -1243,15 +1255,16 @@
                 nodes = {};
                 connections = [];
                 selectedNodeId = null;
-                flowCanvas.innerHTML = `
-                    <svg id="svg-layer">
-                        <defs>
-                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-                                <polygon points="0 0, 10 3.5, 0 7" fill="var(--connector-color)" />
-                            </marker>
-                        </defs>
-                    </svg>
-                `; // Garante que a camada SVG e a definição da ponta de seta estejam presentes
+                // Limpa todos os elementos dentro de flowCanvas, exceto o svg-layer
+                Array.from(flowCanvas.children).forEach(child => {
+                    if (child.id !== 'svg-layer') {
+                        child.remove();
+                    }
+                });
+                // Garante que a camada SVG e a definição da ponta de seta estejam presentes
+                const defs = svgLayer.querySelector('defs');
+                svgLayer.innerHTML = ''; 
+                if (defs) svgLayer.appendChild(defs);
             }
 
             /**

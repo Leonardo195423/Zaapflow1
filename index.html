@@ -17,7 +17,7 @@
             --text-light: #e0e0e0;
             --border-color: #2c3e50;
             --shadow-color: rgba(0, 0, 0, 0.4);
-            --connector-color: #6c757d;
+            --connector-color: #6c757d; /* Default connector color */
             --button-hover-dark: #c33a50; /* Darker primary accent for hover */
             --button-hover-light: #6ad1fc; /* Lighter secondary accent for hover */
         }
@@ -248,10 +248,19 @@
             border-radius: 50%;
             position: absolute;
             cursor: crosshair;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, border-color 0.3s; /* Added border-color transition */
             z-index: 10; /* Keep connectors on top of node content */
         }
-        .connector:hover { background-color: var(--primary-accent); }
+        .connector:hover { 
+            background-color: var(--primary-accent); 
+            border-color: var(--primary-accent); /* Highlight border on hover */
+        }
+        /* Style for highlighted input connector during connection attempt */
+        .connector.highlight-target {
+            background-color: var(--secondary-accent) !important; /* Override with highlight color */
+            border-color: var(--primary-accent) !important; /* Stronger border */
+            box-shadow: 0 0 8px rgba(233, 69, 96, 0.7); /* Subtle glow */
+        }
         .connector.output { right: -8px; }
         .connector.input { left: -8px; top: 50%; transform: translateY(-50%); }
 
@@ -431,7 +440,7 @@
                     <!-- Definição da ponta de seta para as linhas de conexão -->
                     <defs>
                         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="var(--connector-color)" />
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#e94560" /> <!-- Neon Red Arrowhead -->
                         </marker>
                     </defs>
                 </svg>
@@ -578,6 +587,7 @@
                 isConnecting = false, connectionStart = {};
             let pan = { x: 0, y: 0, scale: 1, isPanning: false, startX: 0, startY: 0 };
             let tempLine = null; // Usado para desenhar a linha de conexão temporária
+            let hoveredInputConnector = null; // Track currently highlighted input connector
 
             // --- LÓGICA DE ZOOM E PANORÂMICA ---
             canvasContainer.addEventListener('wheel', (e) => {
@@ -619,7 +629,7 @@
                 pan.x += e.clientX - pan.startX;
                 pan.y += e.clientY - pan.startY;
                 pan.startX = e.clientX;
-                pan.startY = e.startY; // Fix: use e.clientY here
+                pan.startY = e.clientY; 
                 updateCanvasTransform();
             });
 
@@ -1040,13 +1050,13 @@
                 e.preventDefault(); // Previne o comportamento padrão (ex: arrastar texto)
                 if (isConnecting) {
                     // Se já estiver conectando, tenta finalizar a conexão
+                    // Apenas conecta se o alvo for um conector de entrada válido e de um nó diferente
                     if (connector.classList.contains('input') && connectionStart.nodeId !== nodeId) {
-                        // Conecta se for um conector de entrada e não o mesmo nó
                         createConnection(connectionStart.nodeId, nodeId, connectionStart.choice);
                     }
-                    resetConnectionState(); // Sempre reseta o estado da conexão após uma tentativa
+                    resetConnectionState(); // Sempre reseta o estado da conexão após uma tentativa (bem-sucedida ou não)
                 } else {
-                    // Se não estiver conectando, inicia uma nova conexão (apenas de conectores de saída)
+                    // Inicia uma nova conexão (apenas de conectores de saída)
                     if (connector.classList.contains('output')) {
                         isConnecting = true;
                         connectionStart = {
@@ -1054,9 +1064,8 @@
                             choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
                         };
                         currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        currentTempLine.setAttribute('stroke', 'var(--primary-accent)');
-                        currentTempLine.setAttribute('stroke-width', '3');
-                        currentTempLine.setAttribute('stroke-dasharray', '5,5'); // Linha pontilhada para indicar temporário
+                        currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
+                        currentTempLine.setAttribute('stroke-width', '2'); // Thin line
                         currentTempLine.setAttribute('marker-end', 'url(#arrowhead)'); // Adiciona ponta de seta
                         svgLayer.appendChild(currentTempLine);
                         const startPos = getConnectorPosition(connector);
@@ -1064,13 +1073,13 @@
                         currentTempLine.setAttribute('y1', startPos.y);
                         // Adiciona listeners globais para arrastar a linha temporária
                         document.addEventListener('mousemove', onDrawingConnection);
-                        document.addEventListener('mouseup', resetConnectionState);
+                        document.addEventListener('mouseup', resetConnectionState); // Listener global para soltar em qualquer lugar
                     }
                 }
             }
 
             /**
-             * Atualiza a posição da linha temporária durante o arraste de conexão.
+             * Atualiza a posição da linha temporária durante o arraste de conexão e destaca o alvo.
              * @param {MouseEvent} e - O evento do mouse.
              */
             function onDrawingConnection(e) {
@@ -1078,6 +1087,21 @@
                 const coords = toCanvasCoords(e); // Converte para coordenadas do canvas (não transformado)
                 currentTempLine.setAttribute('x2', coords.x);
                 currentTempLine.setAttribute('y2', coords.y);
+
+                // Lógica de destaque do conector de entrada alvo
+                if (hoveredInputConnector) {
+                    hoveredInputConnector.classList.remove('highlight-target');
+                    hoveredInputConnector = null;
+                }
+
+                const target = e.target;
+                if (target && target.classList.contains('connector') && target.classList.contains('input')) {
+                    const targetNodeId = target.closest('.flow-node').id;
+                    if (targetNodeId !== connectionStart.nodeId) { // Não destaca o próprio nó
+                        hoveredInputConnector = target;
+                        hoveredInputConnector.classList.add('highlight-target');
+                    }
+                }
             }
 
             /**
@@ -1089,6 +1113,10 @@
                 if (currentTempLine) {
                     currentTempLine.remove();
                     currentTempLine = null;
+                }
+                if (hoveredInputConnector) {
+                    hoveredInputConnector.classList.remove('highlight-target');
+                    hoveredInputConnector = null;
                 }
                 document.removeEventListener('mousemove', onDrawingConnection);
                 document.removeEventListener('mouseup', resetConnectionState);
@@ -1183,14 +1211,23 @@
             function redrawAllConnections() {
                 // Preserva a definição da ponta de seta
                 const defs = svgLayer.querySelector('defs');
-                svgLayer.innerHTML = ''; 
-                if (defs) svgLayer.appendChild(defs); // Re-adiciona o <defs>
+                // Limpa apenas as linhas, mantendo o <defs>
+                Array.from(svgLayer.children).forEach(child => {
+                    if (child.tagName === 'line') {
+                        child.remove();
+                    }
+                });
+                if (!defs) { // Se por algum motivo o defs sumiu, recria
+                     const newDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                     newDefs.innerHTML = `<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e94560" /></marker>`;
+                     svgLayer.appendChild(newDefs);
+                }
 
                 connections.forEach(conn => {
                     if (nodes[conn.from] && nodes[conn.to]) {
                         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('stroke', 'var(--connector-color)');
-                        line.setAttribute('stroke-width', '3');
+                        line.setAttribute('stroke', '#e94560'); // Neon red
+                        line.setAttribute('stroke-width', '2'); // Thin line
                         line.setAttribute('marker-end', 'url(#arrowhead)'); // Adiciona ponta de seta
                         conn.lineEl = line; // Armazena a referência ao elemento da linha
                         svgLayer.appendChild(line);
@@ -1268,6 +1305,11 @@
                 const defs = svgLayer.querySelector('defs');
                 svgLayer.innerHTML = ''; 
                 if (defs) svgLayer.appendChild(defs);
+                else { // Se o defs sumiu, recria.
+                    const newDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                    newDefs.innerHTML = `<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e94560" /></marker>`;
+                    svgLayer.appendChild(newDefs);
+                }
             }
 
             /**

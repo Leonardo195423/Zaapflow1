@@ -141,7 +141,12 @@
             <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
         </div>
         <div class="hidden md:block text-lg font-semibold">Construtor de Funil</div>
-        <div></div>
+        <div class="flex items-center gap-2">
+            <button id="import-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-upload"></i> Importar</button>
+            <button id="export-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-download"></i> Exportar</button>
+            <button id="export-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-code"></i> Exportar HTML</button>
+            <input type="file" id="import-file-input" class="hidden" accept=".json">
+        </div>
     </header>
 
     <div class="flex-grow grid grid-cols-12 overflow-hidden">

@@ -28,7 +28,6 @@
             background-color: var(--bg-main);
             background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
             background-size: 20px 20px;
-            transition: background-color 0.2s;
         }
         #flow-canvas.drag-over { background-color: rgba(255, 210, 63, 0.05); }
         #flow-canvas:active { cursor: grabbing; }
@@ -48,13 +47,14 @@
         .component-header .accent-bar { height: 3px; width: 100%; border-top-left-radius: 7px; border-top-right-radius: 7px; }
 
         .connector-point {
-            position: absolute; top: 50%; transform: translateY(-50%); width: 16px; height: 16px;
+            position: absolute; top: 50%; width: 16px; height: 16px;
             background-color: var(--bg-tertiary); border: 2px solid var(--text-secondary);
             border-radius: 50%; cursor: crosshair; z-index: 11; transition: all 0.2s ease;
         }
         .connector-point:hover { border-color: var(--accent-yellow); transform: translateY(-50%) scale(1.2); }
-        .connector-point.input { left: -8px; }
-        .connector-point.output { right: -8px; }
+        .connector-point.input { left: -8px; transform: translateY(-50%); }
+        .connector-point.output { right: -8px; transform: translateY(-50%); }
+        .multi-output-container .connector-point.output { position: relative; right: 0; top: 0; transform: none; }
 
         .leader-line { z-index: 5; }
         .component-controls { display: none; }
@@ -94,17 +94,21 @@
             <div class="mb-6">
                 <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
                 <div class="space-y-2">
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="received-message"><i class="fas fa-comment-dots w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Recebida</span></div>
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Enviada</span></div>
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="image-message"><i class="fas fa-image w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Imagem</span></div>
+                    <div class="draggable" draggable="true" data-component-type="received-message"><i class="fas fa-comment-dots"></i><span>Mensagem Recebida</span></div>
+                    <div class="draggable" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane"></i><span>Mensagem Enviada</span></div>
+                    <div class="draggable" draggable="true" data-component-type="image-message"><i class="fas fa-image"></i><span>Imagem</span></div>
+                    <div class="draggable" draggable="true" data-component-type="audio-message"><i class="fas fa-file-audio"></i><span>Áudio</span></div>
+                    <div class="draggable" draggable="true" data-component-type="video-message"><i class="fab fa-youtube"></i><span>Vídeo do YouTube</span></div>
                 </div>
             </div>
             <div>
-                <h3 class="font-semibold text-text-secondary mb-3">LÓGICA</h3>
+                <h3 class="font-semibold text-text-secondary mb-3">LÓGICA E AÇÕES</h3>
                 <div class="space-y-2">
-                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="ask-question"><i class="fas fa-question-circle w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Pergunta com Botões</span></div>
-                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="audio-summary"><i class="fas fa-microphone-lines w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Resumo de Áudio</span></div>
-                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="delay"><i class="fas fa-clock w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Esperar (Delay)</span></div>
+                     <div class="draggable" draggable="true" data-component-type="ask-question"><i class="fas fa-question-circle"></i><span>Pergunta com Botões</span></div>
+                     <div class="draggable" draggable="true" data-component-type="user-input"><i class="fas fa-keyboard"></i><span>Campo de Resposta</span></div>
+                     <div class="draggable" draggable="true" data-component-type="cta-button"><i class="fas fa-mouse-pointer"></i><span>Botão (CTA)</span></div>
+                     <div class="draggable" draggable="true" data-component-type="audio-summary"><i class="fas fa-microphone-lines"></i><span>Resumo de Áudio</span></div>
+                     <div class="draggable" draggable="true" data-component-type="delay"><i class="fas fa-clock"></i><span>Esperar (Delay)</span></div>
                 </div>
             </div>
         </aside>
@@ -160,6 +164,10 @@
             'ask-question': { name: 'Pergunta com Botões', icon: 'fa-question-circle', text: 'Qual é a sua pergunta?', buttons: 'Sim;Não' },
             'delay': { name: 'Esperar (Delay)', icon: 'fa-clock', delay: 2 },
             'image-message': { name: 'Imagem', icon: 'fa-image', url: 'https://placehold.co/600x400/2A2A2A/EAEAEA?text=Imagem' },
+            'audio-message': { name: 'Áudio', icon: 'fa-file-audio', url: '' },
+            'video-message': { name: 'Vídeo do YouTube', icon: 'fab fa-youtube', url: '' },
+            'cta-button': { name: 'Botão (CTA)', icon: 'fa-mouse-pointer', text: 'Clique Aqui', url: '#', color: '#FFD23F', neon: 'true' },
+            'user-input': { name: 'Campo de Resposta', icon: 'fa-keyboard', placeholder: 'Digite sua resposta...' },
             'audio-summary': { name: 'Resumo de Áudio', icon: 'fa-microphone-lines', text: 'Resumo do áudio aparecerá aqui.' }
         };
 
@@ -174,14 +182,11 @@
             const oldZoom = zoom;
             zoom -= e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
             zoom = Math.max(0.2, Math.min(2, zoom));
-            
             const rect = flowCanvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
-            
             panX = mouseX - (mouseX - panX) * (zoom / oldZoom);
             panY = mouseY - (mouseY - panY) * (zoom / oldZoom);
-
             applyTransform();
         });
 
@@ -193,19 +198,8 @@
                 flowCanvas.style.cursor = 'grabbing';
             }
         });
-        
-        window.addEventListener('mousemove', e => {
-            if (isPanning) {
-                panX = e.clientX - panStartX;
-                panY = e.clientY - panStartY;
-                applyTransform();
-            }
-        });
-
-        window.addEventListener('mouseup', e => {
-            isPanning = false;
-            flowCanvas.style.cursor = 'default';
-        });
+        window.addEventListener('mousemove', e => { if (isPanning) { panX = e.clientX - panStartX; panY = e.clientY - panStartY; applyTransform(); } });
+        window.addEventListener('mouseup', () => { isPanning = false; flowCanvas.style.cursor = 'default'; });
 
         document.getElementById('zoom-in-btn').onclick = () => { zoom = Math.min(2, zoom + 0.1); applyTransform(); };
         document.getElementById('zoom-out-btn').onclick = () => { zoom = Math.max(0.2, zoom - 0.1); applyTransform(); };
@@ -244,9 +238,25 @@
                 if(key !== 'name' && key !== 'icon') wrapper.dataset[key] = info[key];
             });
 
-            let displayText = info.text || `Aguardar por ${info.delay} segundos`;
-            if (type === 'image-message') displayText = "Componente de Imagem";
-            if (type === 'audio-summary') displayText = "Aguardando áudio para resumir...";
+            let contentHTML = '';
+            if (type === 'ask-question') {
+                const buttons = info.buttons.split(';');
+                contentHTML += `<div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${info.text}</p></div>`;
+                contentHTML += `<div class="multi-output-container border-t border-border-color divide-y divide-border-color">`;
+                buttons.forEach((btn, index) => {
+                    contentHTML += `<div class="flex justify-between items-center p-2 text-sm text-text-secondary">
+                                        <span>${btn}</span>
+                                        <div class="connector-point output" data-output-index="${index}"></div>
+                                    </div>`;
+                });
+                contentHTML += `</div>`;
+            } else {
+                 let displayText = info.text || `Aguardar por ${info.delay} segundos`;
+                 if (['image-message', 'audio-message', 'video-message'].includes(type)) displayText = `URL: ${info.url || 'Não definida'}`;
+                 if (type === 'cta-button') displayText = `Botão: ${info.text}`;
+                 if (type === 'user-input') displayText = `Placeholder: ${info.placeholder}`;
+                 contentHTML = `<div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${displayText}</p></div>`;
+            }
 
             wrapper.innerHTML = `
                 <div class="component-header">
@@ -259,8 +269,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${displayText}</p></div>
-                <div class="connector-point input"></div><div class="connector-point output"></div>
+                ${contentHTML}
+                <div class="connector-point input"></div>
+                ${type !== 'ask-question' ? '<div class="connector-point output"></div>' : ''}
             `;
             transformer.appendChild(wrapper);
             makeDraggable(wrapper);
@@ -299,8 +310,7 @@
 
         flowCanvas.addEventListener('mousedown', e => {
             if (e.target.classList.contains('output')) {
-                startElementForLine = e.target.parentElement;
-                // Linha temporária que segue o mouse
+                startElementForLine = e.target;
                 currentDrawingLine = new LeaderLine(e.target, LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }), {
                     color: 'rgba(255, 210, 63, 0.7)', size: 2, endPlug: 'behind'
                 });
@@ -316,25 +326,19 @@
         
         document.addEventListener('mouseup', e => {
             if (currentDrawingLine) {
-                // Esconde a linha temporária antes de procurar o alvo
                 currentDrawingLine.hide();
                 const endElement = e.target.closest('.canvas-component');
-                
-                // Remove a linha temporária permanentemente
                 currentDrawingLine.remove();
                 currentDrawingLine = null;
                 
-                if (endElement && endElement !== startElementForLine) {
-                    const line = new LeaderLine(startElementForLine.querySelector('.output'), endElement.querySelector('.input'), {
-                        color: 'var(--accent-yellow)',
-                        size: 2,
-                        path: 'fluid',
-                        startSocketGravity: 60,
-                        endSocketGravity: 60,
+                if (endElement && endElement !== startElementForLine.parentElement) {
+                    const line = new LeaderLine(startElementForLine, endElement.querySelector('.input'), {
+                        color: 'var(--accent-yellow)', size: 2, path: 'fluid',
+                        startSocketGravity: 60, endSocketGravity: 60,
                         dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
                         endPlug: 'behind'
                     });
-                    connections.push({ line, start: startElementForLine, end: endElement });
+                    connections.push({ line, start: startElementForLine.parentElement, end: endElement });
                 }
                 startElementForLine = null;
             }
@@ -354,7 +358,6 @@
         function updatePreview() {
             const previewChatContainer = document.getElementById('preview-chat-container');
             if (!previewChatContainer) return;
-
             previewChatContainer.innerHTML = `
                 <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
                     <img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;">
@@ -370,6 +373,13 @@
             chatBody.scrollTop = chatBody.scrollHeight;
         }
 
+        function openEditModal(element) { /* ... (código do modal inalterado) ... */ }
+        modal.querySelector('#modal-save').onclick = () => { /* ... (código do modal inalterado) ... */ updatePreview(); };
+        modal.querySelector('#modal-cancel').onclick = () => modal.classList.add('hidden');
+
+        function createPreviewComponent(element) { /* ... (código da prévia inalterado) ... */ }
+        
+        // Funções do modal e de criação da prévia (com as novas funcionalidades)
         function openEditModal(element) {
             elementToEdit = element;
             const type = element.dataset.componentType;
@@ -378,22 +388,27 @@
 
             switch(type) {
                 case 'received-message': case 'sent-message': case 'audio-summary':
-                    formHTML = `<label for="text-input" class="block text-sm font-medium text-text-secondary mb-2">Texto</label>
-                                <textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="4">${element.dataset.text}</textarea>`;
+                    formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Texto</label><textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="4">${element.dataset.text}</textarea>`;
                     break;
                 case 'ask-question':
-                    formHTML = `<label for="text-input" class="block text-sm font-medium text-text-secondary mb-2">Texto da Pergunta</label>
-                                <textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="3">${element.dataset.text}</textarea>
-                                <label for="buttons-input" class="block text-sm font-medium text-text-secondary mt-4 mb-2">Botões (um por linha)</label>
-                                <textarea id="buttons-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="3">${element.dataset.buttons.split(';').join('\n')}</textarea>`;
+                    formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Texto da Pergunta</label><textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="3">${element.dataset.text}</textarea>
+                                <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">Botões (um por linha)</label><textarea id="buttons-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="3">${element.dataset.buttons.split(';').join('\n')}</textarea>`;
                     break;
                 case 'delay':
-                    formHTML = `<label for="delay-input" class="block text-sm font-medium text-text-secondary mb-2">Tempo de espera (segundos)</label>
-                                <input type="number" id="delay-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.delay}">`;
+                    formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Tempo de espera (segundos)</label><input type="number" id="delay-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.delay}">`;
                     break;
-                case 'image-message':
-                    formHTML = `<label for="url-input" class="block text-sm font-medium text-text-secondary mb-2">URL da Imagem</label>
-                                <input type="text" id="url-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.url}">`;
+                case 'image-message': case 'audio-message': case 'video-message':
+                    let label = type.includes('image') ? 'Imagem' : (type.includes('audio') ? 'Áudio' : 'Vídeo');
+                    formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">URL do ${label}</label><input type="text" id="url-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.url}">`;
+                    break;
+                case 'cta-button':
+                    formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Texto do Botão</label><input type="text" id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.text}">
+                                <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">URL do Link</label><input type="text" id="url-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.url}">
+                                <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">Cor do Botão</label><input type="color" id="color-input" class="w-full p-1 h-10 rounded-md bg-tertiary border border-border-color" value="${element.dataset.color}">
+                                <div class="flex items-center mt-4"><input type="checkbox" id="neon-input" class="h-4 w-4 rounded bg-tertiary border-border-color" ${element.dataset.neon === 'true' ? 'checked' : ''}><label for="neon-input" class="ml-2 text-sm text-text-secondary">Efeito Neon</label></div>`;
+                    break;
+                case 'user-input':
+                    formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Texto do Placeholder</label><input type="text" id="placeholder-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" value="${element.dataset.placeholder}">`;
                     break;
             }
             modalBody.innerHTML = formHTML;
@@ -412,34 +427,84 @@
                     break;
                 case 'ask-question':
                     elementToEdit.dataset.text = modal.querySelector('#text-input').value;
-                    elementToEdit.dataset.buttons = modal.querySelector('#buttons-input').value.split('\n').filter(b => b).join(';');
+                    const buttons = modal.querySelector('#buttons-input').value.split('\n').filter(b => b);
+                    elementToEdit.dataset.buttons = buttons.join(';');
                     displayText = elementToEdit.dataset.text;
+                    // Recriar saídas dos botões
+                    let buttonOutputsHTML = '';
+                    buttons.forEach((btn, index) => {
+                        buttonOutputsHTML += `<div class="flex justify-between items-center p-2 text-sm text-text-secondary"><span class="truncate">${btn}</span><div class="connector-point output" data-output-index="${index}"></div></div>`;
+                    });
+                    elementToEdit.querySelector('.multi-output-container').innerHTML = buttonOutputsHTML;
                     break;
                 case 'delay':
                     elementToEdit.dataset.delay = modal.querySelector('#delay-input').value;
                     displayText = `Aguardar por ${elementToEdit.dataset.delay} segundos`;
                     break;
-                case 'image-message':
+                case 'image-message': case 'audio-message': case 'video-message':
                     elementToEdit.dataset.url = modal.querySelector('#url-input').value;
-                    displayText = "Componente de Imagem";
+                    displayText = `URL: ${elementToEdit.dataset.url}`;
+                    break;
+                case 'cta-button':
+                    elementToEdit.dataset.text = modal.querySelector('#text-input').value;
+                    elementToEdit.dataset.url = modal.querySelector('#url-input').value;
+                    elementToEdit.dataset.color = modal.querySelector('#color-input').value;
+                    elementToEdit.dataset.neon = modal.querySelector('#neon-input').checked;
+                    displayText = `Botão: ${elementToEdit.dataset.text}`;
+                    break;
+                case 'user-input':
+                    elementToEdit.dataset.placeholder = modal.querySelector('#placeholder-input').value;
+                    displayText = `Placeholder: ${elementToEdit.dataset.placeholder}`;
                     break;
             }
-            elementToEdit.querySelector('.component-text').innerText = displayText;
+            if(elementToEdit.querySelector('.component-text')) elementToEdit.querySelector('.component-text').innerText = displayText;
             modal.classList.add('hidden');
             elementToEdit = null;
             updatePreview();
         };
 
-        modal.querySelector('#modal-cancel').onclick = () => modal.classList.add('hidden');
-
         function createPreviewComponent(element) {
             const type = element.dataset.componentType;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const wrapper = document.createElement('div');
-            
+            wrapper.style.cssText = "display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px;";
+
             switch(type) {
-                case 'received-message': case 'ask-question': case 'audio-summary':
-                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                case 'delay':
+                    wrapper.innerHTML = `<div style="align-self: flex-start; display: flex; align-items: center; padding: 10px 15px;">
+                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out;"></span>
+                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -1.1s;"></span>
+                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -0.9s;"></span>
+                    </div><style>@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }</style>`;
+                    break;
+                case 'audio-message':
+                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333; width: 250px;">
+                        <audio controls style="width: 100%;" src="${element.dataset.url}"></audio>
+                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                    </div>`;
+                    break;
+                case 'video-message':
+                    const videoId = element.dataset.url.split('v=')[1]?.split('&')[0] || element.dataset.url.split('/').pop();
+                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
+                        <iframe style="width: 100%; aspect-ratio: 16/9; border-radius: 8px;" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
+                    </div>`;
+                    break;
+                case 'cta-button':
+                    const color = element.dataset.color;
+                    const neon = element.dataset.neon === 'true' ? `box-shadow: 0 0 10px ${color}, 0 0 20px ${color}80;` : '';
+                    wrapper.innerHTML = `<div style="padding: 10px;"><a href="${element.dataset.url}" target="_blank" style="padding: 12px 24px; background-color: ${color}; color: #111; font-weight: bold; border-radius: 30px; text-decoration: none; ${neon}">${element.dataset.text}</a></div>`;
+                    wrapper.style.alignItems = 'center';
+                    break;
+                case 'user-input':
+                    wrapper.innerHTML = `<div style="width: 100%; background-color: #f0f2f5; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
+                        <input type="text" placeholder="${element.dataset.placeholder}" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em;" disabled>
+                        <button style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em;"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>`;
+                    break;
+                default: // Mensagens e Pergunta
+                    const isSent = type === 'sent-message';
+                    wrapper.style.alignItems = isSent ? 'flex-end' : 'flex-start';
+                    wrapper.innerHTML = `<div style="max-width: 80%; background-color: ${isSent ? '#dcf8c6' : '#fff'}; padding: 10px 15px; border-radius: 10px; ${isSent ? 'border-top-right-radius: 0;' : 'border-top-left-radius: 0;'} box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
                         ${type === 'audio-summary' ? `<i class="fas fa-headphones mr-2"></i><i>${element.dataset.text}</i>` : element.dataset.text}
                         <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
                     </div>`;
@@ -452,33 +517,10 @@
                             button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9em;";
                             btnContainer.appendChild(button);
                         });
-                        const parent = document.createElement('div');
-                        parent.style.cssText = "align-self: flex-start; display: flex; flex-direction: column;";
-                        parent.appendChild(wrapper.firstChild);
-                        parent.appendChild(btnContainer);
-                        return parent;
+                        wrapper.appendChild(btnContainer);
                     }
-                    return wrapper.firstChild;
-                case 'sent-message':
-                     wrapper.innerHTML = `<div style="align-self: flex-end; max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                        ${element.dataset.text}
-                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
-                    </div>`;
-                    return wrapper.firstChild;
-                case 'delay':
-                    wrapper.innerHTML = `<div style="align-self: flex-start; display: flex; align-items: center; padding: 10px 15px;">
-                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out;"></span>
-                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -1.1s;"></span>
-                        <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -0.9s;"></span>
-                    </div><style>@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }</style>`;
-                    return wrapper.firstChild;
-                case 'image-message':
-                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
-                        <img src="${element.dataset.url}" style="width: 100%; border-radius: 8px;" alt="Imagem do fluxo" onerror="this.src='https://placehold.co/600x400/2A2A2A/EAEAEA?text=Erro!'">
-                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; padding: 0 5px 2px;">${time}</span>
-                    </div>`;
-                    return wrapper.firstChild;
             }
+            return wrapper;
         }
         updatePreview();
     });

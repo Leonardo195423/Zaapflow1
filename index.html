@@ -91,6 +91,17 @@
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border-radius: 6px; border: 1px solid var(--border-color); }
 
+        /* Classe para botões de ação amarelos */
+        .btn-action-yellow {
+            background-color: var(--accent-yellow);
+            color: #111;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        .btn-action-yellow:hover {
+            background-color: var(--accent-yellow-dark);
+        }
+
         #preview-chat-container {
             background-color: #e5ddd5;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
@@ -123,7 +134,7 @@
                         <label for="chat-photo-input" class="text-sm text-text-secondary">URL da Foto de Perfil</label>
                         <input type="text" id="chat-photo-input" value="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" class="w-full mt-1 p-2 rounded-md text-sm">
                     </div>
-                    <button id="save-settings-btn" class="w-full p-2 rounded-md bg-accent-yellow text-black font-semibold hover:bg-accent-yellow-dark text-sm">Salvar Configurações</button>
+                    <button id="save-settings-btn" class="w-full p-2 rounded-md text-sm btn-action-yellow">Salvar Configurações</button>
                 </div>
             </div>
             <hr class="border-border-color my-6">
@@ -162,7 +173,7 @@
         <aside class="hidden lg:flex col-span-4 bg-secondary p-4 flex-col">
             <div class="flex justify-between items-center mb-4">
                  <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
-                 <button id="test-flow-btn" class="px-3 py-1 rounded-md bg-accent-yellow text-black font-semibold hover:bg-accent-yellow-dark text-sm flex items-center gap-2"><i class="fas fa-play"></i> Testar Fluxo</button>
+                 <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
             </div>
             <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
                  <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
@@ -176,7 +187,7 @@
             <div id="modal-body"></div>
             <div class="flex justify-end gap-3 mt-6">
                 <button id="modal-cancel" class="px-4 py-2 rounded-md bg-tertiary hover:bg-opacity-70">Cancelar</button>
-                <button id="modal-save" class="px-4 py-2 rounded-md bg-accent-yellow text-black font-semibold hover:bg-accent-yellow-dark">Salvar</button>
+                <button id="modal-save" class="px-4 py-2 rounded-md btn-action-yellow">Salvar</button>
             </div>
         </div>
     </div>
@@ -572,8 +583,8 @@
             testBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Testando...`;
 
             const chatBody = document.getElementById('preview-chat-body');
-            updatePreview(chatBody); // Start with a clean slate
-            chatBody.innerHTML = ''; // Clear for simulation
+            updatePreview(chatBody);
+            chatBody.innerHTML = '';
 
             const delay = ms => new Promise(res => setTimeout(res, ms));
 
@@ -591,10 +602,9 @@
                     const indicator = createPreviewComponent(comp);
                     chatBody.appendChild(indicator);
                     chatBody.scrollTop = chatBody.scrollHeight;
-                    await delay(1500); // Simulate recording time
+                    await delay(1500);
                     indicator.remove();
                     
-                    // Now show the actual audio player
                     const wrapper = document.createElement('div');
                     wrapper.style.cssText = "display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px;";
                     wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333; width: 250px;">
@@ -608,7 +618,7 @@
                     if (previewElement) {
                         chatBody.appendChild(previewElement);
                         chatBody.scrollTop = chatBody.scrollHeight;
-                        await delay(500); // Small delay between other messages
+                        await delay(500);
                     }
                 }
             }

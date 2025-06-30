@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow Builder - Chat Interativo</title>
+    <!-- Usando a biblioteca de ícones Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- ESTILOS GERAIS E SETUP --- */
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-color: #16213e;
+            --canvas-color: #0f1524;
+            --primary-accent: #e94560;
+            --secondary-accent: #4fc3f7;
+            --success-color: #25D366;
+            --text-light: #e0e0e0;
+            --text-dark: #333;
+            --border-color: #2c3e50;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --connector-color: #6c757d;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+        }
+
+        /* --- LAYOUT PRINCIPAL DA APLICAÇÃO --- */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 420px;
+            width: 100%;
+            height: 100%;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .panel {
+            background-color: var(--panel-color);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 5px 0 15px var(--shadow-color);
+        }
+        .panel-header {
+            font-size: 1.4em;
+            font-weight: 700;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--primary-accent);
+        }
+        .panel-header i { margin-right: 10px; }
+        
+        /* --- PAINEL LATERAL DE BLOCOS --- */
+        #side-panel .node-template {
+            background-color: var(--canvas-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            cursor: grab;
+            transition: background-color 0.3s, transform 0.2s;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+        #side-panel .node-template:hover {
+            background-color: #2c3e50;
+            transform: translateY(-2px);
+        }
+        #side-panel .node-template i {
+            margin-right: 10px;
+            color: var(--secondary-accent);
+            width: 20px;
+            text-align: center;
+        }
+        #side-panel .controls {
+            margin-top: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .control-btn {
+            padding: 12px 10px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.2s;
+            font-size: 0.9em;
+        }
+        .control-btn:hover { transform: translateY(-2px); }
+        #run-flow-btn { background-color: var(--primary-accent); grid-column: 1 / -1; }
+        #run-flow-btn:hover { background-color: #c33a50; }
+        #clear-flow-btn { background-color: #555; }
+        #clear-flow-btn:hover { background-color: #777; }
+        #download-html-btn { background-color: var(--success-color); }
+        #download-html-btn:hover { background-color: #128C7E; }
+
+
+        /* --- CANVAS CENTRAL --- */
+        #canvas-container {
+            position: relative;
+            background-color: var(--canvas-color);
+            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        #flow-canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* --- BLOCOS NO CANVAS --- */
+        .flow-node {
+            position: absolute;
+            background-color: var(--panel-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 240px;
+            min-height: 80px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            cursor: move;
+            transition: box-shadow 0.3s, border-color 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+        .flow-node.selected {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
+        }
+        .node-header {
+            background-color: #2c3e50;
+            color: var(--text-light);
+            padding: 8px 10px;
+            font-weight: bold;
+            border-top-left-radius: 7px;
+            border-top-right-radius: 7px;
+        }
+        .node-header i { margin-right: 8px; }
+        .node-content {
+            padding: 10px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .node-content textarea, .node-content input {
+            width: 100%;
+            background-color: var(--canvas-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-light);
+            padding: 8px;
+            resize: vertical;
+        }
+        .node-content textarea { min-height: 40px; }
+        .node-content textarea:focus, .node-content input:focus {
+            outline: none;
+            border-color: var(--secondary-accent);
+        }
+        .node-content label {
+            font-size: 0.8em;
+            color: var(--text-light-muted, #aaa);
+            margin-bottom: -4px;
+        }
+        .flow-node[data-type="start"] { border-color: var(--success-color); }
+        .flow-node[data-type="start"] .node-header { background-color: #128C7E; }
+        
+        .connector {
+            width: 16px; height: 16px;
+            background-color: #fff;
+            border: 2px solid var(--connector-color);
+            border-radius: 50%;
+            position: absolute;
+            cursor: crosshair;
+            transition: background-color 0.3s;
+            z-index: 10;
+        }
+        .connector:hover { background-color: var(--primary-accent); }
+        .connector.output { right: -8px; top: calc(50% - 8px); }
+        .connector.input { left: -8px; top: calc(50% - 8px); }
+        .connector.choice-yes { right: -8px; top: 35%; }
+        .connector.choice-no { right: -8px; top: 65%; }
+
+        /* --- PRÉ-VISUALIZAÇÃO (CELULAR) --- */
+        #preview-panel { align-items: center; justify-content: center; }
+        .mobile-preview {
+            width: 100%; max-width: 380px; height: 95%; background-color: #111;
+            border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .chat-header {
+            background-color: #075E54; color: white; padding: 10px 15px; display: flex;
+            align-items: center; gap: 15px; flex-shrink: 0;
+        }
+        .chat-header img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
+        .chat-header .name { font-weight: bold; }
+        .chat-header .status { font-size: 0.8em; color: #d1d1d1; }
+        
+        .chat-body {
+            flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column;
+            gap: 12px; background-color: #e5ddd5;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+        }
+        .chat-body::-webkit-scrollbar { width: 6px; }
+        .chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
+
+        .message {
+            max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4;
+            word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .message.received { background-color: #ffffff; align-self: flex-start; }
+        .message.sent { background-color: #dcf8c6; align-self: flex-end; }
+        .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+
+        .typing-indicator { align-self: flex-start; padding: 10px 15px; }
+        .typing-indicator span {
+            height: 8px; width: 8px; background-color: #888; border-radius: 50%;
+            display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-of-type(2) { animation-delay: -1.1s; }
+        .typing-indicator span:nth-of-type(3) { animation-delay: -0.9s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        .choice-container {
+            display: flex; gap: 10px; justify-content: flex-end; padding: 5px 10px; align-self: flex-end;
+        }
+        .choice-button {
+            background-color: #fff; border: 1px solid #075E54; color: #075E54;
+            padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
+        }
+        .cta-button-container { padding: 10px; align-self: stretch; }
+        .cta-button {
+            background: linear-gradient(45deg, #25D366, #128C7E); color: white; text-align: center;
+            text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px;
+            border-radius: 30px; display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- PAINEL DE BLOCOS (ESQUERDA) -->
+        <div id="side-panel" class="panel">
+            <div class="panel-header"><i class="fas fa-puzzle-piece"></i> Blocos</div>
+            <div class="node-template" draggable="true" data-type="message">
+                <i class="fas fa-comment-dots"></i> Mensagem do Bot
+            </div>
+             <div class="node-template" draggable="true" data-type="image">
+                <i class="fas fa-image"></i> Imagem
+            </div>
+            <div class="node-template" draggable="true" data-type="question">
+                <i class="fas fa-question-circle"></i> Pergunta (Sim/Não)
+            </div>
+            <div class="node-template" draggable="true" data-type="userInput">
+                <i class="fas fa-keyboard"></i> Entrada do Utilizador
+            </div>
+            <div class="node-template" draggable="true" data-type="delay">
+                <i class="fas fa-clock"></i> Atraso / Pausa
+            </div>
+            <div class="node-template" draggable="true" data-type="cta">
+                <i class="fas fa-rocket"></i> Botão Final (CTA)
+            </div>
+
+            <div class="controls">
+                <button id="run-flow-btn" class="control-btn"><i class="fas fa-play"></i> Testar Fluxo</button>
+                <button id="clear-flow-btn" class="control-btn"><i class="fas fa-trash-alt"></i> Limpar</button>
+                <button id="download-html-btn" class="control-btn"><i class="fas fa-download"></i> Baixar HTML</button>
+            </div>
+        </div>
+
+        <!-- CANVAS (CENTRO) -->
+        <div id="canvas-container">
+            <svg id="svg-layer"></svg>
+            <div id="flow-canvas"></div>
+        </div>
+
+        <!-- PRÉ-VISUALIZAÇÃO (DIREITA) -->
+        <div id="preview-panel" class="panel">
+            <div class="mobile-preview">
+                <div class="chat-header">
+                    <img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Atendente">
+                    <div class="contact-info">
+                        <div class="name">TOP FLIX</div>
+                        <div class="status">online</div>
+                    </div>
+                </div>
+                <div class="chat-body" id="preview-chat-body">
+                    <!-- Mensagens da simulação aparecem aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- ELEMENTOS DO DOM ---
+        const sidePanel = document.getElementById('side-panel');
+        const canvas = document.getElementById('flow-canvas');
+        const svgLayer = document.getElementById('svg-layer');
+        const runFlowBtn = document.getElementById('run-flow-btn');
+        const clearFlowBtn = document.getElementById('clear-flow-btn');
+        const downloadHtmlBtn = document.getElementById('download-html-btn');
+        const previewChatBody = document.getElementById('preview-chat-body');
+
+        // --- ESTADO DA APLICAÇÃO ---
+        let nodes = {};
+        let connections = [];
+        let nodeIdCounter = 0;
+        let selectedNodeId = null;
+        let isConnecting = false;
+        let connectionStart = {};
+        let tempLine = null;
+
+        // --- FUNÇÕES DE ARRASTAR E SOLTAR (DRAG & DROP) ---
+        sidePanel.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('node-template')) {
+                e.dataTransfer.setData('text/plain', e.target.dataset.type);
+            }
+        });
+
+        canvas.addEventListener('dragover', (e) => e.preventDefault());
+
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('text/plain');
+            if (!type) return;
+            const rect = canvas.getBoundingClientRect();
+            createNode(type, e.clientX - rect.left, e.clientY - rect.top);
+        });
+
+        // --- CRIAÇÃO E MANIPULAÇÃO DE BLOCOS (NODES) ---
+        function createNode(type, x, y, id = null, content = []) {
+            const nodeId = id || `node-${nodeIdCounter++}`;
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'flow-node';
+            nodeEl.id = nodeId;
+            nodeEl.dataset.type = type;
+            nodeEl.style.left = `${x}px`;
+            nodeEl.style.top = `${y}px`;
+
+            let headerText = '', headerIcon = '', contentHtml = '';
+            let hasInput = true, hasOutput = true;
+
+            switch(type) {
+                case 'start':
+                    headerText = 'Início'; headerIcon = 'fa-flag-checkered';
+                    contentHtml = `<p style="font-size: 0.9em; text-align: center;">Ponto de partida do fluxo.</p>`;
+                    hasInput = false;
+                    break;
+                case 'message':
+                    headerText = 'Mensagem do Bot'; headerIcon = 'fa-comment-dots';
+                    contentHtml = `<textarea placeholder="Digite o texto da mensagem...">${content[0] || ''}</textarea>`;
+                    break;
+                case 'image':
+                    headerText = 'Imagem'; headerIcon = 'fa-image';
+                    contentHtml = `<textarea placeholder="URL da Imagem...">${content[0] || ''}</textarea>`;
+                    break;
+                case 'question':
+                    headerText = 'Pergunta (Sim/Não)'; headerIcon = 'fa-question-circle';
+                    contentHtml = `<textarea placeholder="Digite o texto da pergunta...">${content[0] || ''}</textarea>`;
+                    break;
+                case 'userInput':
+                    headerText = 'Entrada do Utilizador'; headerIcon = 'fa-keyboard';
+                    contentHtml = `<label>Texto da Pergunta:</label>
+                                 <textarea placeholder="Ex: Qual o seu nome?">${content[0] || ''}</textarea>
+                                 <label>Guardar na Variável:</label>
+                                 <input type="text" placeholder="Ex: userName" value="${content[1] || ''}">`;
+                    break;
+                case 'delay':
+                     headerText = 'Atraso / Pausa'; headerIcon = 'fa-clock';
+                     contentHtml = `<label>Duração (ms):</label>
+                                  <input type="number" placeholder="Ex: 2000" value="${content[0] || '2000'}">`;
+                     break;
+                case 'cta':
+                    headerText = 'Botão Final (CTA)'; headerIcon = 'fa-rocket';
+                    contentHtml = `<label>Texto do Botão:</label>
+                                 <textarea>${content[0] || 'QUERO MEU ACESSO'}</textarea>
+                                 <label>URL do Link:</label>
+                                 <textarea placeholder="https://...">${content[1] || ''}</textarea>`;
+                    hasOutput = false;
+                    break;
+            }
+
+            let connectorsHtml = hasInput ? `<div class="connector input"></div>` : '';
+            if (hasOutput) {
+                if (type === 'question') {
+                    connectorsHtml += `<div class="connector output choice-yes" data-choice="yes" title="Saída para 'Sim'"></div>`;
+                    connectorsHtml += `<div class="connector output choice-no" data-choice="no" title="Saída para 'Não'"></div>`;
+                } else {
+                    connectorsHtml += `<div class="connector output"></div>`;
+                }
+            }
+            
+            nodeEl.innerHTML = `<div class="node-header"><i class="fas ${headerIcon}"></i> ${headerText}</div><div class="node-content">${contentHtml}</div>${connectorsHtml}`;
+            canvas.appendChild(nodeEl);
+            
+            nodes[nodeId] = { id: nodeId, el: nodeEl, type, x, y, content: content.length > 0 ? content : ['', ''] };
+            
+            makeNodeDraggable(nodeEl);
+            setupNodeEventListeners(nodeEl);
+            if(!id) saveState();
+            return nodeEl;
+        }
+
+        function makeNodeDraggable(nodeEl) {
+            let offsetX, offsetY;
+            const onMouseMove = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                let newX = e.clientX - rect.left - offsetX;
+                let newY = e.clientY - rect.top - offsetY;
+                newX = Math.max(0, Math.min(newX, rect.width - nodeEl.offsetWidth));
+                newY = Math.max(0, Math.min(newY, rect.height - nodeEl.offsetHeight));
+                nodeEl.style.left = `${newX}px`;
+                nodeEl.style.top = `${newY}px`;
+                nodes[nodeEl.id].x = newX;
+                nodes[nodeEl.id].y = newY;
+                updateConnectionsForNode(nodeEl.id);
+            };
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                saveState();
+            };
+            nodeEl.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector')) return;
+                selectNode(nodeEl.id);
+                offsetX = e.clientX - nodeEl.getBoundingClientRect().left;
+                offsetY = e.clientY - nodeEl.getBoundingClientRect().top;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+        
+        function setupNodeEventListeners(nodeEl) {
+            nodeEl.addEventListener('click', (e) => { if(!e.target.classList.contains('connector')) selectNode(nodeEl.id); });
+            
+            const inputs = nodeEl.querySelectorAll('textarea, input');
+            inputs.forEach((input, index) => {
+                 input.addEventListener('input', () => {
+                    nodes[nodeEl.id].content = Array.from(inputs).map(i => i.value);
+                    saveState();
+                });
+            });
+
+            nodeEl.querySelectorAll('.connector').forEach(connector => {
+                connector.addEventListener('mousedown', (e) => { e.stopPropagation(); handleConnectorClick(nodeEl.id, connector); });
+            });
+        }
+
+        function selectNode(nodeId) {
+            if (selectedNodeId && nodes[selectedNodeId]) nodes[selectedNodeId].el.classList.remove('selected');
+            selectedNodeId = nodeId;
+            if (nodes[selectedNodeId]) nodes[selectedNodeId].el.classList.add('selected');
+        }
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.flow-node') && selectedNodeId) {
+                if(nodes[selectedNodeId]) nodes[selectedNodeId].el.classList.remove('selected');
+                selectedNodeId = null;
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' && selectedNodeId && nodes[selectedNodeId].type !== 'start') {
+                deleteNode(selectedNodeId);
+            }
+        });
+        
+        function deleteNode(nodeId) {
+            connections = connections.filter(conn => conn.from !== nodeId && conn.to !== nodeId);
+            nodes[nodeId].el.remove();
+            delete nodes[nodeId];
+            selectedNodeId = null;
+            redrawAllConnections();
+            saveState();
+        }
+
+        // --- LÓGICA DE CONEXÃO E DESENHO ---
+        function handleConnectorClick(nodeId, connector) {
+            if (isConnecting) {
+                if (connector.classList.contains('input') && connectionStart.nodeId !== nodeId) {
+                    createConnection(connectionStart.nodeId, nodeId, connectionStart.choice);
+                }
+                resetConnectionState();
+            } else {
+                if (connector.classList.contains('output')) {
+                    isConnecting = true;
+                    connectionStart = { nodeId, choice: connector.dataset.choice || null };
+                    tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    tempLine.setAttribute('stroke', 'var(--primary-accent)');
+                    tempLine.setAttribute('stroke-width', '3');
+                    tempLine.setAttribute('stroke-dasharray', '5,5');
+                    svgLayer.appendChild(tempLine);
+                    const startPos = getConnectorPosition(connector);
+                    tempLine.setAttribute('x1', startPos.x);
+                    tempLine.setAttribute('y1', startPos.y);
+                    document.addEventListener('mousemove', onDrawingConnection);
+                    document.addEventListener('mouseup', () => resetConnectionState(), { once: true });
+                }
+            }
+        }
+        function onDrawingConnection(e) { if(!tempLine) return; const rect = canvas.getBoundingClientRect(); tempLine.setAttribute('x2', e.clientX - rect.left); tempLine.setAttribute('y2', e.clientY - rect.top); }
+        function resetConnectionState() { isConnecting = false; connectionStart = {}; if (tempLine) tempLine.remove(); tempLine = null; document.removeEventListener('mousemove', onDrawingConnection); }
+        function createConnection(fromId, toId, choice = null) { const existing = connections.findIndex(c => c.from === fromId && c.choice === choice); if (existing !== -1) connections.splice(existing, 1); connections.push({ from: fromId, to: toId, choice }); redrawAllConnections(); saveState(); }
+        function getConnectorPosition(connectorEl) { const canvasRect = canvas.getBoundingClientRect(); const connectorRect = connectorEl.getBoundingClientRect(); return { x: (connectorRect.left + connectorRect.width / 2) - canvasRect.left, y: (connectorRect.top + connectorRect.height / 2) - canvasRect.top }; }
+        function updateConnectionsForNode(nodeId) { connections.forEach(conn => { if (conn.from === nodeId || conn.to === nodeId) { const fromNode = nodes[conn.from]; const toNode = nodes[conn.to]; if (!fromNode || !toNode) return; const fromConnector = conn.choice ? fromNode.el.querySelector(`.connector.output[data-choice="\${conn.choice}"]`) : fromNode.el.querySelector('.connector.output'); const toConnector = toNode.el.querySelector('.connector.input'); if (!fromConnector || !toConnector) return; const startPos = getConnectorPosition(fromConnector); const endPos = getConnectorPosition(toConnector); if(conn.lineEl) { conn.lineEl.setAttribute('x1', startPos.x); conn.lineEl.setAttribute('y1', startPos.y); conn.lineEl.setAttribute('x2', endPos.x); conn.lineEl.setAttribute('y2', endPos.y); } } }); }
+        function redrawAllConnections() { svgLayer.innerHTML = ''; connections.forEach(conn => { if (nodes[conn.from] && nodes[conn.to]) { const line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); line.setAttribute('stroke', 'var(--connector-color)'); line.setAttribute('stroke-width', '3'); conn.lineEl = line; svgLayer.appendChild(line); updateConnectionsForNode(conn.from); } }); }
+
+        // --- SIMULAÇÃO DO FLUXO (PREVIEW) ---
+        runFlowBtn.addEventListener('click', async () => {
+            previewChatBody.innerHTML = '';
+            const startNode = Object.values(nodes).find(n => n.type === 'start');
+            if (!startNode) return;
+            let currentNodeId = findNextNodeId(startNode.id);
+            while(currentNodeId) {
+                const node = nodes[currentNodeId];
+                if (!node) break;
+                
+                if (node.type !== 'delay') await showTypingIndicator(true);
+
+                switch(node.type) {
+                    case 'message': addPreviewMessage(node.content[0], 'received'); break;
+                    case 'image': addPreviewMessage(`<img src="\${node.content[0]}" alt="Imagem do chat">`, 'received'); break;
+                    case 'delay': await new Promise(r => setTimeout(r, parseInt(node.content[0], 10) || 1000)); break;
+                    case 'cta': addPreviewCTA(node.content[0], node.content[1]); currentNodeId = null; break;
+                    case 'userInput': addPreviewMessage(node.content[0], 'received'); await showTypingIndicator(false, '[Simulando resposta do utilizador...]'); addPreviewMessage('Minha resposta', 'sent'); break;
+                    case 'question':
+                        addPreviewMessage(node.content[0], 'received');
+                        const choice = await addPreviewChoices();
+                        addPreviewMessage(choice === 'yes' ? 'Sim' : 'Não', 'sent');
+                        currentNodeId = findNextNodeId(node.id, choice);
+                        continue; // Evita a busca padrão do próximo nó
+                }
+                
+                if (currentNodeId) currentNodeId = findNextNodeId(node.id);
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        });
+        function findNextNodeId(fromId, choice = null) { const conn = connections.find(c => c.from === fromId && c.choice === choice); return conn ? conn.to : null; }
+        async function showTypingIndicator(show, text = '') { const el = document.createElement('div'); el.className = `message received \${show ? 'typing-indicator' : ''}`; el.innerHTML = show ? `<span></span><span></span><span></span>` : text; previewChatBody.appendChild(el); previewChatBody.scrollTop = previewChatBody.scrollHeight; if(show) { await new Promise(r => setTimeout(r, 800 + Math.random() * 800)); el.remove(); } }
+        function addPreviewMessage(html, type) { const el = document.createElement('div'); el.className = `message \${type}`; el.innerHTML = html; previewChatBody.appendChild(el); previewChatBody.scrollTop = previewChatBody.scrollHeight; }
+        function addPreviewCTA(text, link) { const c = document.createElement('div'); c.className = 'cta-button-container'; c.innerHTML = `<a href="\${link || '#'}" class="cta-button" target="_blank"><i class="fas fa-lock"></i> \${text}</a>`; previewChatBody.appendChild(c); previewChatBody.scrollTop = previewChatBody.scrollHeight; }
+        function addPreviewChoices() { return new Promise(resolve => { const c = document.createElement('div'); c.className = 'choice-container'; c.innerHTML = `<button class="choice-button" data-choice="yes">Sim</button><button class="choice-button" data-choice="no">Não</button>`; previewChatBody.appendChild(c); previewChatBody.scrollTop = previewChatBody.scrollHeight; c.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { c.remove(); resolve(e.target.dataset.choice); } }); }); }
+
+        // --- GERAÇÃO DO HTML PARA DOWNLOAD ---
+        downloadHtmlBtn.addEventListener('click', () => {
+            try {
+                const generatedHtml = generateFinalHtml();
+                const blob = new Blob([generatedHtml], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'chat.html';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Erro ao gerar o HTML:", error);
+                alert(`Não foi possível gerar o HTML. Verifique se o fluxo está conectado corretamente.\n\nErro: \${error.message}`);
+            }
+        });
+
+        function generateFinalHtml() {
+            const steps = [];
+            const startNode = Object.values(nodes).find(n => n.type === 'start');
+            if (!startNode) throw new Error("Bloco de 'Início' não encontrado.");
+
+            function trace(nodeId) {
+                if (!nodeId || steps.some(s => s.id === nodeId)) return;
+                const node = nodes[nodeId];
+                const step = { id: node.id, type: node.type, content: node.content };
+                const nextConn = connections.find(c => c.from === nodeId && !c.choice);
+                if (nextConn) step.next = nextConn.to;
+                if (node.type === 'question') {
+                    const yesConn = connections.find(c => c.from === nodeId && c.choice === 'yes');
+                    const noConn = connections.find(c => c.from === nodeId && c.choice === 'no');
+                    if(yesConn) step.yes = yesConn.to;
+                    if(noConn) step.no = noConn.to;
+                }
+                steps.push(step);
+                if(step.next) trace(step.next);
+                if(step.yes) trace(step.yes);
+                if(step.no) trace(step.no);
+            }
+            const firstNodeId = findNextNodeId(startNode.id);
+            if (firstNodeId) trace(firstNodeId);
+            
+            const jsScript = `
+        const chatBody = document.getElementById('chatBody'), inputContainer = document.getElementById('input-container');
+        const userInput = document.getElementById('userInput'), sendButton = document.getElementById('sendButton');
+        const choiceContainer = document.getElementById('choice-container'), yesBtn = document.getElementById('yesBtn'), noBtn = document.getElementById('noBtn');
+        const ctaContainer = document.getElementById('cta-container'), ctaButton = ctaContainer.querySelector('a');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const userVars = {};
+        let waitingForInput = null;
+        
+        const steps = ${JSON.stringify(steps, null, 2)};
+
+        function addMessage(html, sender) {
+            const el = document.createElement('div');
+            el.classList.add('message', sender);
+            
+            const processedHtml = html.replace(/\\{(\\w+)\\}/g, (match, varName) => userVars[varName] || match);
+            el.innerHTML = processedHtml;
+
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            el.innerHTML += \`<span class="timestamp" style="font-size: 0.7em; color: #999; text-align: right; display: block; margin-top: 5px;">\${time} <i class="fa-solid fa-check-double" style="color:#4fc3f7;"></i></span>\`;
+            chatBody.insertBefore(el, typingIndicator);
+            scrollToBottom();
+        }
+        function scrollToBottom() { chatBody.scrollTop = chatBody.scrollHeight; }
+        function showTyping(show = true) { typingIndicator.style.opacity = show ? '1' : '0'; if(show) scrollToBottom(); }
+        
+        async function runFlow(stepId) {
+            if (!stepId) { showTyping(false); return; }
+            const step = steps.find(s => s.id === stepId);
+            if (!step) return;
+
+            if (step.type !== 'delay') showTyping(true);
+            await new Promise(r => setTimeout(r, step.type === 'delay' ? parseInt(step.content[0], 10) : 1200));
+            showTyping(false);
+
+            switch(step.type) {
+                case 'message':
+                    addMessage(step.content[0], 'received');
+                    runFlow(step.next);
+                    break;
+                case 'image':
+                    addMessage('<img src="' + step.content[0] + '" style="max-width:100%; border-radius: 8px;" alt="imagem">', 'received');
+                    runFlow(step.next);
+                    break;
+                case 'delay':
+                    runFlow(step.next);
+                    break;
+                case 'userInput':
+                    addMessage(step.content[0], 'received');
+                    waitingForInput = { variable: step.content[1], next: step.next };
+                    inputContainer.classList.remove('hidden');
+                    userInput.focus();
+                    break;
+                case 'question':
+                    addMessage(step.content[0], 'received');
+                    choiceContainer.classList.remove('hidden');
+                    yesBtn.onclick = () => { addMessage('Sim', 'sent'); choiceContainer.classList.add('hidden'); runFlow(step.yes); };
+                    noBtn.onclick = () => { addMessage('Não', 'sent'); choiceContainer.classList.add('hidden'); runFlow(step.no); };
+                    break;
+                case 'cta':
+                    ctaButton.innerHTML = \`<i class="fa-solid fa-lock"></i> \${step.content[0]}\`;
+                    ctaButton.href = step.content[1];
+                    ctaContainer.classList.remove('hidden');
+                    break;
+            }
+        }
+        
+        function handleUserInput() {
+            const text = userInput.value.trim();
+            if (text === '' || !waitingForInput) return;
+            addMessage(text, 'sent');
+            userVars[waitingForInput.variable] = text;
+            const nextStepId = waitingForInput.next;
+            waitingForInput = null;
+            userInput.value = '';
+            inputContainer.classList.add('hidden');
+            runFlow(nextStepId);
+        }
+
+        sendButton.addEventListener('click', handleUserInput);
+        userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserInput(); });
+        
+        window.onload = () => {
+            runFlow(steps.length > 0 ? steps[0].id : null);
+        };`;
+
+            const finalHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atendimento Interativo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; padding: 10px; }
+        .mobile-preview { width: 100%; max-width: 420px; height: 95%; max-height: 850px; background-color: #111; border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0; }
+        .chat-header img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
+        .chat-header .name { font-weight: bold; } .chat-header .status { font-size: 0.8em; color: #d1d1d1; }
+        .chat-body { flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); }
+        .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .message.received { background-color: #ffffff; align-self: flex-start; } .message.sent { background-color: #dcf8c6; align-self: flex-end; }
+        .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        .typing-indicator { align-self: flex-start; padding: 10px 15px; } .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
+        .typing-indicator span:nth-of-type(2) { animation-delay: -1.1s; } .typing-indicator span:nth-of-type(3) { animation-delay: -0.9s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+        .chat-footer { background-color: #f0f2f5; padding: 10px; flex-shrink: 0; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        .hidden { display: none !important; }
+        #userInput { flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; } #userInput:focus { outline: none; }
+        #sendButton { background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; }
+        .choice-container { background-color: #f0f2f5; padding: 5px 15px; display: flex; gap: 10px; justify-content: flex-end; }
+        .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .cta-button-container { padding: 10px 15px; background-color: #f0f2f5; }
+        .cta-button { background: linear-gradient(45deg,#25D366,#128C7E); color: white; text-align: center; text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px; border-radius: 30px; display: block; }
+        .cta-button i { margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <div class="mobile-preview">
+        <div class="chat-header"><img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Atendente"><div class="contact-info"><div class="name">TOP FLIX</div><div class="status">online</div></div></div>
+        <div class="chat-body" id="chatBody"><div class="message received typing-indicator" id="typingIndicator" style="opacity:0"><span></span><span></span><span></span></div></div>
+        <div class="chat-footer hidden" id="input-container"><input type="text" id="userInput" placeholder="Digite sua resposta..."><button id="sendButton"><i class="fas fa-paper-plane"></i></button></div>
+        <div class="choice-container hidden" id="choice-container"><button class="choice-button" id="yesBtn">Sim</button><button class="choice-button" id="noBtn">Não</button></div>
+        <div class="cta-button-container hidden" id="cta-container"><a href="#" class="cta-button"></a></div>
+    </div>
+<script>
+${jsScript}
+<\/script>
+</body>
+</html>`;
+            return finalHtml;
+        }
+
+
+        // --- ESTADO E PERSISTÊNCIA ---
+        function saveState() {
+            const state = {
+                nodes: Object.values(nodes).map(n => ({ id: n.id, type: n.type, content: n.content, x: n.x, y: n.y })),
+                connections, nodeIdCounter
+            };
+            localStorage.setItem('chatFlowState', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const stateJSON = localStorage.getItem('chatFlowState');
+            if (!stateJSON) return;
+            try {
+                const state = JSON.parse(stateJSON);
+                nodeIdCounter = state.nodeIdCounter || 0;
+                if (state.nodes) {
+                    state.nodes.forEach(data => {
+                        createNode(data.type, data.x, data.y, data.id, data.content);
+                    });
+                }
+                connections = state.connections || [];
+                redrawAllConnections();
+            } catch (e) { console.error("Erro ao carregar o estado:", e); localStorage.removeItem('chatFlowState'); }
+        }
+        
+        // --- INICIALIZAÇÃO E CONTROLES ---
+        clearFlowBtn.addEventListener('click', () => {
+            if (confirm('Tem certeza que deseja apagar todo o fluxo? Esta ação não pode ser desfeita.')) {
+                localStorage.removeItem('chatFlowState');
+                nodes = {}; connections = []; nodeIdCounter = 0;
+                canvas.innerHTML = ''; svgLayer.innerHTML = ''; init();
+            }
+        });
+        
+        function init() {
+            loadState();
+            if (Object.keys(nodes).length === 0) {
+                 createNode('start', 50, 150, 'node-0', []);
+            }
+        }
+        
+        init();
+    });
+    </script>
+</body>
+</html>

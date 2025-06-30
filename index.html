@@ -613,14 +613,17 @@
                 pan.startY = e.clientY;
             });
             canvasContainer.addEventListener('mousemove', e => {
-                if (!pan.isPanning) return;
-                pan.x += e.clientX - pan.startX;
-                pan.y += e.clientY - pan.startY;
-                pan.startX = e.clientX;
-                pan.startY = e.clientY;
-                updateCanvasTransform();
+                if (pan.isPanning) {
+                    pan.x += e.clientX - pan.startX;
+                    pan.y += e.clientY - pan.startY;
+                    pan.startX = e.clientX;
+                    pan.startY = e.clientY;
+                    updateCanvasTransform();
+                }
             });
-            window.addEventListener('mouseup', () => pan.isPanning = false);
+            window.addEventListener('mouseup', () => {
+                pan.isPanning = false;
+            });
             
             // --- DRAG AND DROP ---
             document.querySelectorAll('.node-template').forEach(t => {
@@ -666,8 +669,8 @@
                     svgLayer.appendChild(path);
                 });
             };
-            
-            const handleConnectorClick = (e, nodeId, connector) => {
+
+            const handleConnectorMouseDown = (e, nodeId, connector) => {
                 e.stopPropagation();
                 if (!connector.classList.contains('output')) return;
                 isConnecting = true;
@@ -677,7 +680,7 @@
                 svgLayer.appendChild(currentTempLine);
             };
 
-            const onMouseMove = (e) => {
+            const handleGlobalMouseMove = (e) => {
                 if (!isConnecting) return;
                 const fromConnector = nodes[connectionStart.nodeId].el.querySelector(connectionStart.choice != null ? `.connector.output[data-choice="${connectionStart.choice}"]` : '.connector.output:not([data-choice])');
                 const startPos = getConnectorPosition(fromConnector);
@@ -687,20 +690,31 @@
                 if (hoveredInputConnector) hoveredInputConnector.classList.remove('highlight-target');
                 hoveredInputConnector = null;
                 
-                const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-                if (elementUnderMouse && elementUnderMouse.classList.contains('connector') && elementUnderMouse.classList.contains('input')) {
-                    const targetNodeId = elementUnderMouse.closest('.flow-node').id;
-                    if (targetNodeId !== connectionStart.nodeId) {
-                        hoveredInputConnector = elementUnderMouse;
-                        hoveredInputConnector.classList.add('highlight-target');
+                const mouseCanvasX = mousePos.x;
+                const mouseCanvasY = mousePos.y;
+
+                for (const nodeId in nodes) {
+                    if (nodeId === connectionStart.nodeId) continue;
+                    const node = nodes[nodeId];
+                    const inputConnector = node.el.querySelector('.connector.input');
+                    if (inputConnector) {
+                        const connectorPos = getConnectorPosition(inputConnector);
+                        const distance = Math.sqrt(Math.pow(mouseCanvasX - connectorPos.x, 2) + Math.pow(mouseCanvasY - connectorPos.y, 2));
+                        if (distance < 10) { // 10px hit radius
+                            hoveredInputConnector = inputConnector;
+                            hoveredInputConnector.classList.add('highlight-target');
+                            return; // Found a target, no need to check others
+                        }
                     }
                 }
             };
-
-            const onMouseUp = (e) => {
+            
+            const handleGlobalMouseUp = (e) => {
                 if (!isConnecting) return;
                 if (hoveredInputConnector) {
-                    const fromId = connectionStart.nodeId, toId = hoveredInputConnector.closest('.flow-node').id, choice = connectionStart.choice;
+                    const fromId = connectionStart.nodeId;
+                    const toId = hoveredInputConnector.closest('.flow-node').id;
+                    const choice = connectionStart.choice;
                     connections = connections.filter(c => !(c.from === fromId && c.choice === choice));
                     connections.push({ from: fromId, to: toId, choice });
                     saveState();
@@ -713,9 +727,9 @@
                 hoveredInputConnector = null;
             };
 
-            // Attach persistent listeners
-            canvasContainer.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('mouseup', onMouseUp);
+            // Attach persistent listeners to the window for robust event handling
+            window.addEventListener('mousemove', handleGlobalMouseMove);
+            window.addEventListener('mouseup', handleGlobalMouseUp);
 
             function createNode(type, x, y, id = null, content = []) {
                 const nodeId = id || `node-${nodeIdCounter++}`;
@@ -805,7 +819,7 @@
                         saveState();
                     };
                 });
-                nodeEl.querySelectorAll('.connector').forEach(c => c.addEventListener('mousedown', e => handleConnectorClick(e, nodeEl.id, c)));
+                nodeEl.querySelectorAll('.connector').forEach(c => c.addEventListener('mousedown', e => handleConnectorMouseDown(e, nodeEl.id, c)));
             }
             function makeNodeDraggable(nodeEl) {
                 let dragOffsetX, dragOffsetY;

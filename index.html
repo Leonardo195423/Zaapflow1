@@ -592,9 +592,9 @@
                     wrapper.style.alignItems = 'center';
                     break;
                 case 'user-input':
-                    wrapper.innerHTML = `<div style="width: 100%; background-color: #f0f2f5; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
-                        <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000;">
-                        <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer;"><i class="fa-solid fa-paper-plane"></i></button>
+                    wrapper.innerHTML = `<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
+                        <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>`;
                     break;
                 default:
@@ -610,7 +610,7 @@
                         element.dataset.buttons.split(';').forEach(btnText => {
                             const button = document.createElement('button');
                             button.innerText = btnText;
-                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9em;";
+                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9em; cursor: pointer; transition: background-color 0.2s;";
                             btnContainer.appendChild(button);
                         });
                         wrapper.appendChild(btnContainer);
@@ -661,6 +661,42 @@
                         chatBody.appendChild(audioPlayer);
                         setupAudioPlayer(audioPlayer);
                     }
+                } else if (type === 'ask-question') {
+                    const previewElement = createPreviewComponent(comp);
+                    chatBody.appendChild(previewElement);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+
+                    await new Promise(resolve => {
+                        const buttons = previewElement.querySelectorAll('button');
+                        buttons.forEach(button => {
+                            button.addEventListener('click', () => {
+                                const userText = button.innerText;
+                                const sentMessage = document.createElement('div');
+                                sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
+                                sentMessage.innerHTML = `<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                                    ${userText}
+                                    <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>`;
+                                chatBody.appendChild(sentMessage);
+                                
+                                buttons.forEach(btn => {
+                                    btn.disabled = true;
+                                    btn.style.cursor = 'not-allowed';
+                                    btn.style.backgroundColor = '#f0f0f0';
+                                    btn.style.borderColor = '#ccc';
+                                    btn.style.color = '#aaa';
+                                });
+                                button.style.backgroundColor = '#075E54';
+                                button.style.color = 'white';
+
+                                setTimeout(() => {
+                                    chatBody.scrollTop = chatBody.scrollHeight;
+                                    resolve()
+                                }, 500);
+                            }, { once: true });
+                        });
+                    });
+
                 } else if (type === 'user-input') {
                     const previewElement = createPreviewComponent(comp);
                     chatBody.appendChild(previewElement);
@@ -683,6 +719,7 @@
                                 <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>`;
                             chatBody.appendChild(sentMessage);
+                            chatBody.scrollTop = chatBody.scrollHeight;
                             resolve();
                         };
 
@@ -754,7 +791,7 @@
         document.getElementById('test-flow-btn').addEventListener('click', runFlowTest);
         
         // ==================================================================
-        // NOVO CÓDIGO: FUNÇÕES DE IMPORTAÇÃO E EXPORTAÇÃO
+        // CÓDIGO DE IMPORTAÇÃO E EXPORTAÇÃO
         // ==================================================================
 
         /**
@@ -919,11 +956,6 @@
     <script>
         const flowData = ${JSON.stringify(flowData, null, 2)};
         
-        // Funções de criação de componentes e execução do fluxo (versões simplificadas)
-        // ... (código adaptado de createPreviewComponent, runFlowTest, etc.)
-        // Cole o código completo das funções do script principal aqui para garantir a funcionalidade
-        // Para simplificar, vou colar as funções necessárias diretamente abaixo:
-
         const chatContainer = document.getElementById('preview-chat-container');
         let chatBody;
 
@@ -992,7 +1024,7 @@
                     wrapper.style.alignItems = 'center';
                     break;
                 case 'user-input':
-                    wrapper.innerHTML = \`<div style="width: 100%; background-color: #f0f2f5; padding: 10px; display: flex; gap: 10px; margin-top: auto;"><input type="text" placeholder="\${element.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000;"><button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer;"><i class="fa-solid fa-paper-plane"></i></button></div>\`;
+                    wrapper.innerHTML = \`<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;"><input type="text" placeholder="\${element.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"><button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button></div>\`;
                     break;
                 default:
                     const isSent = type === 'sent-message';
@@ -1004,7 +1036,7 @@
                         element.buttons.split(';').forEach(btnText => {
                             const button = document.createElement('button');
                             button.innerText = btnText;
-                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9em;";
+                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9em; cursor: pointer; transition: background-color 0.2s;";
                             btnContainer.appendChild(button);
                         });
                         wrapper.appendChild(btnContainer);
@@ -1032,6 +1064,25 @@
                         chatBody.appendChild(audioPlayer);
                         setupAudioPlayer(audioPlayer);
                     }
+                } else if (type === 'ask-question') {
+                    const previewElement = createPreviewComponent(comp);
+                    chatBody.appendChild(previewElement);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    await new Promise(resolve => {
+                        const buttons = previewElement.querySelectorAll('button');
+                        buttons.forEach(button => {
+                            button.addEventListener('click', () => {
+                                const userText = button.innerText;
+                                const sentMessage = document.createElement('div');
+                                sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
+                                sentMessage.innerHTML = \`<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">\${userText}<span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">\${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></div>\`;
+                                chatBody.appendChild(sentMessage);
+                                buttons.forEach(btn => { btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.backgroundColor = '#f0f0f0'; btn.style.borderColor = '#ccc'; btn.style.color = '#aaa'; });
+                                button.style.backgroundColor = '#075E54'; button.style.color = 'white';
+                                setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; resolve() }, 500);
+                            }, { once: true });
+                        });
+                    });
                 } else if (type === 'user-input') {
                     const previewElement = createPreviewComponent(comp);
                     chatBody.appendChild(previewElement);

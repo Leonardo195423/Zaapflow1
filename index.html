@@ -198,7 +198,7 @@
         }
         /* New: Z-index for actively dragged node to prevent visual "duplication" */
         .flow-node.dragging {
-            z-index: 100 !important; 
+            z-index: 9999 !important; /* Extremely high z-index to ensure it's always on top */
         }
 
         .node-header {
@@ -619,7 +619,7 @@
                 pan.x += e.clientX - pan.startX;
                 pan.y += e.clientY - pan.startY;
                 pan.startX = e.clientX;
-                pan.startY = e.clientY;
+                pan.startY = e.startY; // Fix: use e.clientY here
                 updateCanvasTransform();
             });
 
@@ -635,10 +635,12 @@
 
             // Converte coordenadas da tela para coordenadas do canvas (não transformado)
             function toCanvasCoords(e) {
-                const rect = canvasContainer.getBoundingClientRect();
+                const rect = flowCanvas.getBoundingClientRect(); // Use flowCanvas rect as it's the transformed one
+                const xOnCanvas = e.clientX - rect.left;
+                const yOnCanvas = e.clientY - rect.top;
                 return {
-                    x: (e.clientX - rect.left - pan.x) / pan.scale,
-                    y: (e.clientY - rect.top - pan.y) / pan.scale
+                    x: xOnCanvas / pan.scale, // Un-scale relative to flowCanvas's internal coords
+                    y: yOnCanvas / pan.scale  // Un-scale relative to flowCanvas's internal coords
                 };
             }
 
@@ -934,8 +936,8 @@
                     if (!isDraggingNode) return;
                     e.preventDefault(); // Previne o comportamento de arraste padrão do navegador
                     // Calcula a nova posição do nó ajustando para o pan e zoom do canvas
-                    const newX = (e.clientX - canvasContainer.getBoundingClientRect().left - pan.x) / pan.scale - dragOffsetX;
-                    const newY = (e.clientY - canvasContainer.getBoundingClientRect().top - pan.y) / pan.scale - dragOffsetY;
+                    const newX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - dragOffsetX;
+                    const newY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - dragOffsetY;
                     nodeEl.style.left = `${newX}px`;
                     nodeEl.style.top = `${newY}px`;
                     nodes[nodeEl.id].x = newX;
@@ -952,17 +954,17 @@
                 };
 
                 nodeEl.addEventListener('mousedown', (e) => {
+                    e.preventDefault(); // SUPER IMPORTANTE: Previne o comportamento de arraste padrão do navegador (que cria a "duplicação")
                     // Não inicia o arraste se o clique for em um textarea, input ou conector
                     if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector')) {
                         return;
                     }
-                    e.preventDefault(); // Previne o comportamento de arraste padrão do navegador no mousedown
                     selectNode(nodeEl.id); // Seleciona o nó clicado
                     isDraggingNode = true;
                     nodeEl.classList.add('dragging'); // Adiciona a classe dragging
                     // Calcula o offset do clique dentro do nó para um arraste suave
-                    dragOffsetX = (e.clientX - canvasContainer.getBoundingClientRect().left - pan.x) / pan.scale - nodes[nodeEl.id].x;
-                    dragOffsetY = (e.clientY - canvasContainer.getBoundingClientRect().top - pan.y) / pan.scale - nodes[nodeEl.id].y;
+                    dragOffsetX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - nodes[nodeEl.id].x;
+                    dragOffsetY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - nodes[nodeEl.id].y;
                     
                     document.addEventListener('mousemove', onMouseMove);
                     document.addEventListener('mouseup', onMouseUp);
@@ -1035,6 +1037,7 @@
              * @param {HTMLElement} connector - O elemento do conector clicado.
              */
             function handleConnectorClick(nodeId, connector) {
+                e.preventDefault(); // Previne o comportamento padrão (ex: arrastar texto)
                 if (isConnecting) {
                     // Se já estiver conectando, tenta finalizar a conexão
                     if (connector.classList.contains('input') && connectionStart.nodeId !== nodeId) {

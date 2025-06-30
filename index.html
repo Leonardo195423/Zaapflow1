@@ -253,8 +253,11 @@
             color: var(--text-light-muted, #aaa);
             margin-bottom: -4px;
         }
+        /* Specific node type styles */
         .flow-node[data-type="start"] { border-color: var(--success-color); }
         .flow-node[data-type="start"] .node-header { background-color: #128C7E; }
+        .flow-node[data-type="end"] { border-color: #f7b731; } /* Warning color for End */
+        .flow-node[data-type="end"] .node-header { background-color: #e09f25; } /* Darker warning for End header */
         .flow-node[data-type="question"], .flow-node[data-type="multipleChoice"] { border-color: var(--secondary-accent); }
         .flow-node[data-type="question"] .node-header, .flow-node[data-type="multipleChoice"] .node-header { background-color: #3b5998; }
         
@@ -418,6 +421,10 @@
                 <span><i class="fas fa-sitemap"></i> Blocos do Fluxo</span>
                 <button id="logout-button" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
             </div>
+            <!-- Novo: Nó de Início Arrastável -->
+            <div class="node-template" draggable="true" data-type="start">
+                <i class="fas fa-flag-checkered"></i> Início do Fluxo
+            </div>
             <div class="node-template" draggable="true" data-type="message">
                 <i class="fas fa-comment-dots"></i> Mensagem do Bot
             </div>
@@ -438,6 +445,10 @@
             </div>
             <div class="node-template" draggable="true" data-type="cta">
                 <i class="fas fa-rocket"></i> Botão Final (CTA)
+            </div>
+            <!-- Novo: Nó de Fim Arrastável -->
+            <div class="node-template" draggable="true" data-type="end">
+                <i class="fas fa-stop-circle"></i> Fim do Fluxo
             </div>
 
             <div class="controls">
@@ -489,7 +500,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- LÓGICA DO MODAL CUSTOMIZADO ---
+        // --- CUSTOM MODAL LOGIC ---
         const modalOverlay = document.getElementById('custom-modal-overlay');
         const modalTitle = document.getElementById('modal-title');
         const modalMessage = document.getElementById('modal-message');
@@ -500,11 +511,11 @@
         let onCancelCallback;
 
         /**
-         * Exibe um modal de confirmação customizado.
-         * @param {string} title - O título do modal.
-         * @param {string} message - A mensagem a ser exibida no modal.
-         * @param {function} onConfirm - Função de callback a ser executada se confirmado.
-         * @param {function} [onCancel] - Função de callback opcional a ser executada se cancelado.
+         * Displays a custom confirmation modal.
+         * @param {string} title - The modal title.
+         * @param {string} message - The message to display in the modal.
+         * @param {function} onConfirm - Callback function to execute if confirmed.
+         * @param {function} [onCancel] - Optional callback function to execute if cancelled.
          */
         function showConfirmModal(title, message, onConfirm, onCancel) {
             modalTitle.textContent = title;
@@ -512,7 +523,7 @@
             onConfirmCallback = onConfirm;
             onCancelCallback = onCancel;
             
-            modalCancelBtn.classList.remove('hidden'); // Certifica-se de que o botão de cancelar está visível
+            modalCancelBtn.classList.remove('hidden'); // Ensure cancel button is visible
 
             modalConfirmBtn.onclick = () => {
                 modalOverlay.classList.add('hidden');
@@ -527,20 +538,20 @@
         }
 
         /**
-         * Exibe um modal de alerta customizado (apenas botão de confirmação).
-         * @param {string} title - O título do modal.
-         * @param {string} message - A mensagem a ser exibida no modal.
-         * @param {function} [onClose] - Função de callback opcional a ser executada quando fechado.
+         * Displays a custom alert modal (only confirmation button).
+         * @param {string} title - The modal title.
+         * @param {string} message - The message to display in the modal.
+         * @param {function} [onClose] - Optional callback function to execute when closed.
          */
         function showAlertModal(title, message, onClose) {
             modalTitle.textContent = title;
             modalMessage.textContent = message;
-            modalCancelBtn.classList.add('hidden'); // Oculta o botão de cancelar para alertas
+            modalCancelBtn.classList.add('hidden'); // Hide cancel button for alerts
             
-            onConfirmCallback = onClose; // Usa o botão de confirmação para fechar o alerta
+            onConfirmCallback = onClose; // Use confirm button to close alert
             modalConfirmBtn.onclick = () => {
                 modalOverlay.classList.add('hidden');
-                modalCancelBtn.classList.remove('hidden'); // Mostra o botão de cancelar para o próximo uso
+                modalCancelBtn.classList.remove('hidden'); // Show cancel button for next use
                 if (onConfirmCallback) onConfirmCallback();
             };
 
@@ -548,7 +559,7 @@
         }
 
 
-        // --- LÓGICA DE LOGIN ---
+        // --- LOGIN LOGIC ---
         const loginScreen = document.getElementById('login-screen');
         const appContainer = document.getElementById('app-container');
         const loginForm = document.getElementById('login-form');
@@ -565,7 +576,7 @@
             if (username === 'admin' && password === 'admin123') {
                 loginScreen.classList.add('hidden');
                 appContainer.classList.remove('hidden');
-                initFlowBuilder(); // Inicia o builder SÓ depois do login
+                initFlowBuilder(); // Initialize builder ONLY after login
             } else {
                 loginError.textContent = 'Utilizador ou senha inválidos.';
                 setTimeout(() => loginError.textContent = '', 3000);
@@ -581,12 +592,12 @@
             );
         });
         
-        // --- INÍCIO DO CÓDIGO DO FLOW BUILDER ---
+        // --- START OF FLOW BUILDER CODE ---
         function initFlowBuilder() {
             const sidePanel = document.getElementById('side-panel'),
                 canvasContainer = document.getElementById('canvas-container'),
                 flowCanvas = document.getElementById('flow-canvas'),
-                svgLayer = document.getElementById('svg-layer'), // svgLayer agora é filho de flowCanvas
+                svgLayer = document.getElementById('svg-layer'), // svgLayer is now a child of flowCanvas
                 runFlowBtn = document.getElementById('run-flow-btn'),
                 clearFlowBtn = document.getElementById('clear-flow-btn'),
                 downloadHtmlBtn = document.getElementById('download-html-btn'),
@@ -601,7 +612,7 @@
             let currentTempLine = null; // Used to draw the temporary connection line
             let hoveredInputConnector = null; // Track currently highlighted input connector
 
-            // --- LÓGICA DE ZOOM E PANORÂMICA ---
+            // --- ZOOM AND PAN LOGIC ---
             canvasContainer.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const rect = canvasContainer.getBoundingClientRect();
@@ -711,6 +722,12 @@
                         headerIcon = 'fa-flag-checkered';
                         contentHtml = `<p style="text-align:center;">Ponto de partida do fluxo</p>`;
                         hasInputConnector = false; // No input
+                        break;
+                    case 'end': // New 'end' node type
+                        headerText = 'Fim';
+                        headerIcon = 'fa-stop-circle';
+                        contentHtml = `<p style="text-align:center;">Ponto final do fluxo</p>`;
+                        hasOutputConnector = false; // No output
                         break;
                     case 'message':
                         headerText = 'Mensagem';
@@ -1103,26 +1120,15 @@
                 }
             });
 
-            // Function to enable mouseup listeners on input connectors
-            function enableInputConnectorListeners() {
-                // Attach a single 'mouseup' listener to the document, delegated to input connectors
-                // This is more efficient than adding/removing listeners on each connector
-                // when starting/ending a connection drag.
-                document.addEventListener('mouseup', tryFinalizeConnectionGlobally, true); // Use capture phase
-            }
-
-            // Function to disable mouseup listeners on input connectors
-            function disableInputConnectorListeners() {
-                document.removeEventListener('mouseup', tryFinalizeConnectionGlobally, true); // Remove from capture phase
-            }
-
-            // Global mouseup handler to try and finalize connection
-            function tryFinalizeConnectionGlobally(e) {
+            // Global mouseup handler for connection logic
+            function handleGlobalMouseUp(e) {
                 if (!isConnecting) return; // Only proceed if a connection attempt is active
+                console.log("Global mouseup detected. isConnecting:", isConnecting);
 
                 const targetConnector = e.target.closest('.connector.input'); // Find closest input connector
+                
                 if (targetConnector && targetConnector.closest('.flow-node').id !== connectionStart.nodeId) { // Ensure not connecting to itself
-                    console.log("MouseUp detected on valid input connector. Attempting to finalize connection.");
+                    console.log("MouseUp on a valid and different input connector. Attempting to finalize connection.");
                     // Remove any existing connection that starts from the same source output/choice
                     connections = connections.filter(c => !(c.from === connectionStart.nodeId && c.choice === connectionStart.choice));
 
@@ -1130,10 +1136,10 @@
                     connections = connections.filter(c => !(c.to === targetConnector.closest('.flow-node').id));
                     
                     createConnection(connectionStart.nodeId, targetConnector.closest('.flow-node').id, connectionStart.choice);
-                    e.stopPropagation(); // Stop propagation to prevent global resetConnectionState from firing immediately
+                } else {
+                    console.log("MouseUp not on a valid target connector or self-connecting. Resetting state.");
                 }
-                // Always reset the connection state after a mouseup, regardless if a connection was made or not
-                resetConnectionState();
+                resetConnectionState(); // Always reset the state after a mouseup, regardless if a connection was made or not
             }
 
 
@@ -1148,34 +1154,41 @@
                 e.stopPropagation(); 
 
                 if (isConnecting) {
-                    // This block should theoretically not be reached if tryFinalizeConnectionGlobally handles mouseup
-                    // on target input connectors and calls stopPropagation().
-                    // If it is reached, it means mouseup happened somewhere else, or the connection attempt failed.
-                    console.log("Attempted to start new connection while one was already active. Resetting.");
+                    // If a connection is already in progress, clicking another connector should reset it
+                    console.log("Attempted to start new connection while one was already active. Resetting existing attempt.");
                     resetConnectionState();
-                } else {
-                    // Start a new connection (only from output connectors)
-                    if (connector.classList.contains('output')) {
-                        console.log(`Starting connection from node ${nodeId}, choice: ${connector.dataset.choice || 'default'}`);
-                        isConnecting = true;
-                        connectionStart = {
-                            nodeId: nodeId,
-                            choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
-                        };
-                        currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Use path for bezier
-                        currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
-                        currentTempLine.setAttribute('stroke-width', '2'); // Thin line
-                        currentTempLine.setAttribute('fill', 'none'); // No fill for lines
-                        svgLayer.appendChild(currentTempLine);
-                        const startPos = getConnectorPosition(connector);
-                        currentTempLine.setAttribute('d', `M ${startPos.x} ${startPos.y} L ${startPos.x} ${startPos.y}`); // Initial straight line
-                        
-                        document.addEventListener('mousemove', onDrawingConnection);
-                        // The global mouseup listener will handle both successful drops and drops outside targets
-                        document.addEventListener('mouseup', resetConnectionState); 
-                        
-                        enableInputConnectorListeners(); // Enable listeners specifically for input connectors
+                }
+
+                // Start a new connection (only from output connectors)
+                if (connector.classList.contains('output')) {
+                    // Prevent connecting from 'end' node (new rule)
+                    if (nodes[nodeId].type === 'end') {
+                        showAlertModal('Erro de Conexão', 'Nós do tipo "Fim" não podem ter saídas.');
+                        return;
                     }
+
+                    console.log(`Starting connection from node ${nodeId}, choice: ${connector.dataset.choice || 'default'}`);
+                    isConnecting = true;
+                    connectionStart = {
+                        nodeId: nodeId,
+                        choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
+                    };
+                    currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Use path for bezier
+                    currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
+                    currentTempLine.setAttribute('stroke-width', '2'); // Thin line
+                    currentTempLine.setAttribute('fill', 'none'); // No fill for lines
+                    svgLayer.appendChild(currentTempLine);
+                    const startPos = getConnectorPosition(connector);
+                    currentTempLine.setAttribute('d', `M ${startPos.x} ${startPos.y} L ${startPos.x} ${startPos.y}`); // Initial straight line
+                    
+                    document.addEventListener('mousemove', onDrawingConnection);
+                    // Attach the single global mouseup listener only when connection starts
+                    document.addEventListener('mouseup', handleGlobalMouseUp, { once: true }); // { once: true } ensures it runs only once
+                }
+                 // Prevent connecting to 'start' node (new rule)
+                if (connector.classList.contains('input') && nodes[nodeId].type === 'start') {
+                    showAlertModal('Erro de Conexão', 'Nós do tipo "Início" não podem ter entradas.');
+                    resetConnectionState(); // Reset if an invalid connection attempt was made
                 }
             }
 
@@ -1224,8 +1237,8 @@
                 const targetElement = document.elementFromPoint(e.clientX, e.clientY);
                 if (targetElement && targetElement.classList.contains('connector') && targetElement.classList.contains('input')) {
                     const targetNodeId = targetElement.closest('.flow-node').id;
-                    // Ensure we are not over the source node of the connection
-                    if (targetNodeId !== connectionStart.nodeId) {  
+                    // Ensure we are not over the source node of the connection AND not trying to connect to 'start' or 'end' input
+                    if (targetNodeId !== connectionStart.nodeId && nodes[targetNodeId].type !== 'start' && nodes[targetNodeId].type !== 'end') {  
                         hoveredInputConnector = targetElement;
                         hoveredInputConnector.classList.add('highlight-target');
                     }
@@ -1248,9 +1261,8 @@
                     hoveredInputConnector = null;
                 }
                 document.removeEventListener('mousemove', onDrawingConnection);
-                document.removeEventListener('mouseup', resetConnectionState); // Remove self
-                
-                disableInputConnectorListeners(); // Disable input connector specific listeners
+                // The handleGlobalMouseUp listener should have { once: true } so it removes itself
+                // No need to explicitly remove it here.
             }
 
             /**
@@ -1469,9 +1481,9 @@
                     () => {
                         resetCanvas();
                         nodeIdCounter = 0;
-                        createNode('start', 50, 150, 'node-0'); // Create a default start node
+                        // No default start node created here. User must drag it.
                         saveState();
-                        showAlertModal('Fluxo Limpo', 'O canvas foi limpo e um novo nó de Início foi adicionado.');
+                        showAlertModal('Fluxo Limpo', 'O canvas foi limpo. Arraste um nó de "Início" para começar.');
                     },
                     () => showAlertModal('Ação Cancelada', 'A limpeza do fluxo foi cancelada.')
                 );
@@ -1638,10 +1650,15 @@
                                 console.log(`Found start connection to: ${startConnection.to}`);
                                 await simulateFlow(startConnection.to); // Continue to next node
                             } else {
-                                console.log("No connection found for start node.");
+                                console.log("No connection found for start node. Flow terminated.", connections);
                                 addMessage("Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", "received");
                             }
                             break;
+
+                        case 'end': // New 'end' node behavior
+                            addMessage("Fluxo finalizado.", "received");
+                            console.log("End node reached. Flow terminated.");
+                            return; // Stop simulation here
 
                         case 'message':
                             addMessage(processedContent[0], "received");
@@ -1654,7 +1671,7 @@
                                 await simulateFlow(msgConnection.to);
                             }
                             else {
-                                console.log("No connection found for message node.");
+                                console.log("No connection found for message node. Flow terminated.");
                                 addMessage("Nó 'Mensagem' não conectado. Fluxo terminou.", "received");
                             }
                             break;
@@ -1669,7 +1686,7 @@
                                 await simulateFlow(imgConnection.to);
                             }
                             else {
-                                console.log("No connection found for image node.");
+                                console.log("No connection found for image node. Flow terminated.");
                                 addMessage("Nó 'Imagem' não conectado. Fluxo terminou.", "received");
                             }
                             break;
@@ -1688,7 +1705,7 @@
                                 await simulateFlow(questionConnection.to);
                             }
                             else {
-                                console.log(`No connection found for question node choice '${questionChoice}'.`);
+                                console.log(`No connection found for question node choice '${questionChoice}'. Flow terminated.`);
                                 showAlertModal('Aviso', `Nenhuma conexão definida para a opção "${questionChoice === 'yes' ? 'Sim' : 'Não'}". Fluxo terminou.`);
                             }
                             break;
@@ -1709,7 +1726,7 @@
                                 await simulateFlow(mcConnection.to);
                             }
                             else {
-                                console.log(`No connection found for multiple choice node choice index '${mcChoiceIndex}'.`);
+                                console.log(`No connection found for multiple choice node choice index '${mcChoiceIndex}'. Flow terminated.`);
                                 showAlertModal('Aviso', `Nenhuma conexão definida para a opção "${mcOptions[mcChoiceIndex]}". Fluxo terminou.`);
                             }
                             break;
@@ -1729,7 +1746,7 @@
                                 await simulateFlow(userInputConnection.to);
                             }
                             else {
-                                console.log("No connection found for user input node.");
+                                console.log("No connection found for user input node. Flow terminated.");
                                 addMessage("Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", "received");
                             }
                             break;
@@ -1748,7 +1765,7 @@
                                 await simulateFlow(delayConnection.to);
                             }
                             else {
-                                console.log("No connection found for delay node.");
+                                console.log("No connection found for delay node. Flow terminated.");
                                 addMessage("Nó 'Atraso' não conectado. Fluxo terminou.", "received");
                             }
                             break;
@@ -1789,7 +1806,7 @@
                 // Find start node
                 const startNode = Object.values(nodes).find(node => node.type === 'start');
                 if (!startNode) {
-                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo. Por favor, adicione um.');
+                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo. Por favor, arraste um do painel lateral.');
                     return;
                 }
                 
@@ -1802,10 +1819,9 @@
             // --- INITIALIZATION ---
             function init() {
                 loadState(); // Try to load saved state
+                // If no nodes, do not create a default start node. User must drag it.
                 if (Object.keys(nodes).length === 0) {
-                    // If no nodes, create a default start node
-                    createNode('start', 50, 150, 'node-0');
-                    saveState();
+                   console.log("No nodes loaded. Canvas is empty.");
                 }
                 console.log("Flow builder initialized.");
             }

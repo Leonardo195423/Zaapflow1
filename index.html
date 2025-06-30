@@ -946,6 +946,8 @@
                     if (!isDraggingNode) return;
                     e.preventDefault(); // Previne o comportamento de arraste padrão do navegador
                     // Calcula a nova posição do nó ajustando para o pan e zoom do canvas
+                    // Usamos flowCanvas.getBoundingClientRect() para obter a posição transformada do canvas
+                    // e depois dividimos por pan.scale para obter as coordenadas no sistema de referência do flowCanvas.
                     const newX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - dragOffsetX;
                     const newY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - dragOffsetY;
                     nodeEl.style.left = `${newX}px`;
@@ -964,15 +966,22 @@
                 };
 
                 nodeEl.addEventListener('mousedown', (e) => {
-                    e.preventDefault(); // SUPER IMPORTANTE: Previne o comportamento de arraste padrão do navegador (que cria a "duplicação")
-                    // Não inicia o arraste se o clique for em um textarea, input ou conector
+                    // Verifica se o clique foi em um input, textarea ou conector.
+                    // Se sim, permite a interação nativa e não inicia o arraste do nó.
                     if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector')) {
-                        return;
+                        e.stopPropagation(); // Impede que o evento propague para o nó e para o canvas (para não iniciar pan)
+                        return; // Sai da função, não inicia o arraste do nó
                     }
+                    
+                    e.preventDefault(); // Agora, este preventDefault só é chamado se for um arraste do nó (não input/connector)
+                                        // Isso previne o "ghosting" nativo do navegador.
+
                     selectNode(nodeEl.id); // Seleciona o nó clicado
                     isDraggingNode = true;
-                    nodeEl.classList.add('dragging'); // Adiciona a classe dragging
+                    nodeEl.classList.add('dragging'); // Adiciona a classe dragging para z-index elevado
+
                     // Calcula o offset do clique dentro do nó para um arraste suave
+                    // Os offsets são calculados no sistema de coordenadas do flowCanvas.
                     dragOffsetX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - nodes[nodeEl.id].x;
                     dragOffsetY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - nodes[nodeEl.id].y;
                     
@@ -1047,7 +1056,9 @@
              * @param {HTMLElement} connector - O elemento do conector clicado.
              */
             function handleConnectorClick(nodeId, connector) {
-                e.preventDefault(); // Previne o comportamento padrão (ex: arrastar texto)
+                e.preventDefault(); // Previne o comportamento padrão (ex: arrastar texto ou imagens dentro do conector)
+                e.stopPropagation(); // Impede que o clique no conector propague para o nó pai ou para o canvas
+
                 if (isConnecting) {
                     // Se já estiver conectando, tenta finalizar a conexão
                     // Apenas conecta se o alvo for um conector de entrada válido e de um nó diferente
@@ -1094,11 +1105,13 @@
                     hoveredInputConnector = null;
                 }
 
-                const target = e.target;
-                if (target && target.classList.contains('connector') && target.classList.contains('input')) {
-                    const targetNodeId = target.closest('.flow-node').id;
-                    if (targetNodeId !== connectionStart.nodeId) { // Não destaca o próprio nó
-                        hoveredInputConnector = target;
+                // Verifica se o mouse está sobre um conector de entrada válido (não o conector de saída original)
+                const targetElement = document.elementFromPoint(e.clientX, e.clientY);
+                if (targetElement && targetElement.classList.contains('connector') && targetElement.classList.contains('input')) {
+                    const targetNodeId = targetElement.closest('.flow-node').id;
+                    // Certifica-se de que não estamos sobre o nó de origem da conexão
+                    if (targetNodeId !== connectionStart.nodeId) { 
+                        hoveredInputConnector = targetElement;
                         hoveredInputConnector.classList.add('highlight-target');
                     }
                 }
@@ -1209,6 +1222,10 @@
              * Limpa e redesenha todas as linhas de conexão SVG.
              */
             function redrawAllConnections() {
+                // Filter out any connections that refer to non-existent nodes first.
+                // This ensures we only attempt to draw valid connections and clean up old ones.
+                connections = connections.filter(conn => nodes[conn.from] && nodes[conn.to]);
+
                 // Preserva a definição da ponta de seta
                 const defs = svgLayer.querySelector('defs');
                 // Limpa apenas as linhas, mantendo o <defs>
@@ -1224,15 +1241,14 @@
                 }
 
                 connections.forEach(conn => {
-                    if (nodes[conn.from] && nodes[conn.to]) {
-                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('stroke', '#e94560'); // Neon red
-                        line.setAttribute('stroke-width', '2'); // Thin line
-                        line.setAttribute('marker-end', 'url(#arrowhead)'); // Adiciona ponta de seta
-                        conn.lineEl = line; // Armazena a referência ao elemento da linha
-                        svgLayer.appendChild(line);
-                        updateConnectionLine(conn); // Atualiza a posição da nova linha
-                    }
+                    // At this point, we are sure nodes[conn.from] and nodes[conn.to] exist due to the filter above.
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('stroke', '#e94560'); // Neon red
+                    line.setAttribute('stroke-width', '2'); // Thin line
+                    line.setAttribute('marker-end', 'url(#arrowhead)'); // Adiciona ponta de seta
+                    conn.lineEl = line; // Armazena a referência ao elemento da linha
+                    svgLayer.appendChild(line);
+                    updateConnectionLine(conn); // Atualiza a posição da nova linha
                 });
             }
             

@@ -659,7 +659,7 @@
                     this.tempLine.setAttribute('class', 'connection-line');
                     svgLayer.appendChild(this.tempLine);
                     document.addEventListener('mousemove', this.drag);
-                    document.addEventListener('mouseup', this.end, { once: true });
+                    document.addEventListener('mouseup', this.end);
                 },
 
                 drag(e) {
@@ -683,6 +683,7 @@
                 },
 
                 end(e) {
+                    document.removeEventListener('mousemove', connectionManager.drag);
                     if (connectionManager.hoveredConnector) {
                         const fromId = connectionManager.startInfo.nodeId;
                         const toId = connectionManager.hoveredConnector.closest('.flow-node').id;
@@ -692,7 +693,6 @@
                         saveState();
                         redrawAllConnections();
                     }
-                    document.removeEventListener('mousemove', connectionManager.drag);
                     connectionManager.reset();
                 },
                 
@@ -703,6 +703,8 @@
                     this.tempLine = null;
                     this.hoveredConnector?.classList.remove('highlight-target');
                     this.hoveredConnector = null;
+                    // Remove listener on end to ensure clean state
+                    document.removeEventListener('mouseup', this.end);
                 }
             };
 

@@ -173,8 +173,6 @@
             left: 0;
             width: 100%;
             height: 100%;
-            /* Remove pointer-events: none; so that clicks on SVG lines can be detected for deletion */
-            /* We will manage click throughs directly in JS if needed */
         }
 
         /* --- BLOCOS NO CANVAS --- */
@@ -208,12 +206,11 @@
             font-weight: bold;
             border-top-left-radius: 7px;
             border-top-right-radius: 7px;
-            display: flex; /* Added for delete button alignment */
-            justify-content: space-between; /* Added for delete button alignment */
-            align-items: center; /* Added for delete button alignment */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .node-header i { margin-right: 8px; }
-        /* Style for the delete button */
         .delete-node-btn {
             background: none;
             border: none;
@@ -256,8 +253,8 @@
         /* Specific node type styles */
         .flow-node[data-type="start"] { border-color: var(--success-color); }
         .flow-node[data-type="start"] .node-header { background-color: #128C7E; }
-        .flow-node[data-type="end"] { border-color: #f7b731; } /* Warning color for End */
-        .flow-node[data-type="end"] .node-header { background-color: #e09f25; } /* Darker warning for End header */
+        .flow-node[data-type="end"] { border-color: #f7b731; }
+        .flow-node[data-type="end"] .node-header { background-color: #e09f25; }
         .flow-node[data-type="question"], .flow-node[data-type="multipleChoice"] { border-color: var(--secondary-accent); }
         .flow-node[data-type="question"] .node-header, .flow-node[data-type="multipleChoice"] .node-header { background-color: #3b5998; }
         
@@ -275,11 +272,10 @@
             background-color: var(--primary-accent); 
             border-color: var(--primary-accent); /* Highlight border on hover */
         }
-        /* Style for highlighted input connector during connection attempt */
         .connector.highlight-target {
-            background-color: var(--secondary-accent) !important; /* Override with highlight color */
-            border-color: var(--primary-accent) !important; /* Stronger border */
-            box-shadow: 0 0 8px rgba(233, 69, 96, 0.7); /* Subtle glow */
+            background-color: var(--secondary-accent) !important;
+            border-color: var(--primary-accent) !important;
+            box-shadow: 0 0 8px rgba(233, 69, 96, 0.7);
         }
         .connector.output { right: -8px; }
         .connector.input { left: -8px; top: 50%; transform: translateY(-50%); }
@@ -390,6 +386,16 @@
             background-color: #777;
             transform: translateY(-2px);
         }
+
+        /* New styles for Bot Settings */
+        .bot-settings {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .bot-settings .input-group {
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -451,6 +457,21 @@
                 <i class="fas fa-stop-circle"></i> Fim do Fluxo
             </div>
 
+            <!-- Bot Settings Section -->
+            <div class="bot-settings">
+                <div class="panel-header">
+                    <span><i class="fas fa-robot"></i> Configurações do Bot</span>
+                </div>
+                <div class="input-group">
+                    <label for="bot-name-input">Nome do Bot</label>
+                    <input type="text" id="bot-name-input" placeholder="Nome do Bot">
+                </div>
+                <div class="input-group">
+                    <label for="bot-profile-pic-input">URL da Foto de Perfil</label>
+                    <input type="text" id="bot-profile-pic-input" placeholder="https://exemplo.com/bot.png">
+                </div>
+            </div>
+
             <div class="controls">
                 <button id="run-flow-btn" class="control-btn"><i class="fas fa-play"></i> Testar Fluxo</button>
                 <button id="import-flow-btn" class="control-btn"><i class="fas fa-upload"></i> Importar Fluxo</button>
@@ -463,11 +484,8 @@
 
         <div id="canvas-container">
             <div id="flow-canvas">
-                <!-- A camada SVG agora está DENTRO do flow-canvas para herdar transformações -->
                 <svg id="svg-layer">
-                    <!-- Definição da ponta de seta foi removida conforme solicitado -->
                 </svg>
-                <!-- Os nós serão adicionados aqui como filhos diretos do flow-canvas -->
             </div>
         </div>
 
@@ -475,9 +493,9 @@
             <div class="panel-header"><i class="fas fa-mobile-alt"></i> Pré-visualização</div>
             <div class="mobile-preview">
                 <div class="chat-header">
-                    <img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Atendente">
+                    <img id="preview-bot-avatar" src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Atendente">
                     <div class="contact-info">
-                        <div class="name">ZAPFLOW BOT</div>
+                        <div id="preview-bot-name" class="name">ZAPFLOW BOT</div>
                         <div class="status">online</div>
                     </div>
                 </div>
@@ -597,7 +615,7 @@
             const sidePanel = document.getElementById('side-panel'),
                 canvasContainer = document.getElementById('canvas-container'),
                 flowCanvas = document.getElementById('flow-canvas'),
-                svgLayer = document.getElementById('svg-layer'), // svgLayer is now a child of flowCanvas
+                svgLayer = document.getElementById('svg-layer'),
                 runFlowBtn = document.getElementById('run-flow-btn'),
                 clearFlowBtn = document.getElementById('clear-flow-btn'),
                 downloadHtmlBtn = document.getElementById('download-html-btn'),
@@ -606,11 +624,17 @@
                 exportFlowBtn = document.getElementById('export-flow-btn'),
                 importFileInput = document.getElementById('import-file-input');
 
+            // New bot settings elements
+            const botNameInput = document.getElementById('bot-name-input');
+            const botProfilePicInput = document.getElementById('bot-profile-pic-input');
+            const previewBotName = document.getElementById('preview-bot-name');
+            const previewBotAvatar = document.getElementById('preview-bot-avatar');
+
             let nodes = {}, connections = [], nodeIdCounter = 0, selectedNodeId = null,
-                isConnecting = false, connectionStart = {}; // connectionStart holds { nodeId, choice }
+                isConnecting = false, connectionStart = {};
             let pan = { x: 0, y: 0, scale: 1, isPanning: false, startX: 0, startY: 0 };
-            let currentTempLine = null; // Used to draw the temporary connection line
-            let hoveredInputConnector = null; // Track currently highlighted input connector
+            let currentTempLine = null;
+            let hoveredInputConnector = null;
 
             // --- ZOOM AND PAN LOGIC ---
             canvasContainer.addEventListener('wheel', (e) => {
@@ -644,7 +668,7 @@
                 selectNode(null); // Deselect any node when starting canvas pan
                 pan.isPanning = true;
                 pan.startX = e.clientX;
-                pan.startY = e.clientY;
+                pan.startY = e.clientY; 
             });
 
             canvasContainer.addEventListener('mousemove', (e) => {
@@ -873,7 +897,6 @@
                 const headerHeight = nodeEl.querySelector('.node-header').offsetHeight;
                 const nodeContentEl = nodeEl.querySelector('.node-content');
                 const contentPaddingTop = parseFloat(window.getComputedStyle(nodeContentEl).paddingTop);
-                // const contentPaddingBottom = parseFloat(window.getComputedStyle(nodeContentEl).paddingBottom); // Not directly used in calculation here
                 
                 // Calculate position of connectors relative to the top of `node-content`
                 let currentY = headerHeight + contentPaddingTop; // Starts after header and content top padding
@@ -888,7 +911,6 @@
                     connector.dataset.choice = i; // Stores the option index
                     
                     // Vertical position of connector: center of the option div
-                    // currentY is the top of the option div. Add half of optionDiv.offsetHeight to center it.
                     connector.style.top = `${currentY + optionDiv.offsetHeight / 2}px`;
                     connector.style.transform = 'translateY(-50%)'; // Vertically center
                     nodeEl.appendChild(connector);
@@ -1183,9 +1205,9 @@
                     
                     document.addEventListener('mousemove', onDrawingConnection);
                     // Attach the single global mouseup listener only when connection starts
-                    document.addEventListener('mouseup', handleGlobalMouseUp, { once: true }); // { once: true } ensures it runs only once
+                    document.addEventListener('mouseup', handleGlobalMouseUp, { once: true });
                 }
-                 // Prevent connecting to 'start' node (new rule)
+                   // Prevent connecting to 'start' node (new rule)
                 if (connector.classList.contains('input') && nodes[nodeId].type === 'start') {
                     showAlertModal('Erro de Conexão', 'Nós do tipo "Início" não podem ter entradas.');
                     resetConnectionState(); // Reset if an invalid connection attempt was made
@@ -1336,7 +1358,6 @@
                 connections = connections.filter(conn => nodes[conn.from] && nodes[conn.to]);
 
                 // Clear only lines, keeping <defs> if any.
-                // In our case, we removed the arrow marker <defs>, so we just remove paths.
                 Array.from(svgLayer.children).forEach(child => {
                     if (child.tagName === 'path') { // Lines are paths now
                         child.remove();
@@ -1364,15 +1385,19 @@
                         type: n.type,
                         x: n.x,
                         y: n.y,
-                        content: n.content // Export content
+                        content: n.content
                     })),
                     connections: connections.map(c => ({
                         from: c.from,
                         to: c.to,
-                        choice: c.choice // Export choice
+                        choice: c.choice
                     })),
                     nodeIdCounter,
-                    pan
+                    pan,
+                    botSettings: {
+                        name: botNameInput.value,
+                        profilePic: botProfilePicInput.value
+                    }
                 };
                 const dataStr = JSON.stringify(dataToExport, null, 2);
                 const blob = new Blob([dataStr], {type: 'application/json'});
@@ -1381,7 +1406,7 @@
                 a.href = url;
                 a.download = 'zapflow_flow.json';
                 a.click();
-                URL.revokeObjectURL(url); // Release object URL
+                URL.revokeObjectURL(url);
                 showAlertModal('Sucesso!', 'Fluxo exportado com sucesso como "zapflow_flow.json".');
             });
 
@@ -1444,7 +1469,11 @@
                         choice: c.choice
                     })),
                     nodeIdCounter,
-                    pan
+                    pan,
+                    botSettings: {
+                        name: botNameInput.value,
+                        profilePic: botProfilePicInput.value
+                    }
                 };
                 localStorage.setItem('zapflowBuilderState', JSON.stringify(state));
                 console.log("State saved:", state);
@@ -1458,6 +1487,10 @@
                 const state = data || JSON.parse(localStorage.getItem('zapflowBuilderState'));
                 if (!state) {
                     console.log("No saved state found.");
+                    // Set default bot settings if no state is found
+                    botNameInput.value = 'ZAPFLOW BOT';
+                    botProfilePicInput.value = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
+                    updateBotPreview();
                     return;
                 }
                 console.log("Loading state:", state);
@@ -1474,6 +1507,16 @@
                 // Then restore connections
                 connections = state.connections || [];
                 redrawAllConnections(); // Redraw all lines
+
+                // Load bot settings
+                if (state.botSettings) {
+                    botNameInput.value = state.botSettings.name || 'ZAPFLOW BOT';
+                    botProfilePicInput.value = state.botSettings.profilePic || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
+                } else {
+                    botNameInput.value = 'ZAPFLOW BOT';
+                    botProfilePicInput.value = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
+                }
+                updateBotPreview();
             }
 
             clearFlowBtn.addEventListener('click', () => {
@@ -1487,6 +1530,27 @@
                     },
                     () => showAlertModal('Ação Cancelada', 'A limpeza do fluxo foi cancelada.')
                 );
+            });
+
+            // --- BOT SETTINGS LOGIC ---
+            function updateBotPreview() {
+                previewBotName.textContent = botNameInput.value || 'ZAPFLOW BOT';
+                previewBotAvatar.src = botProfilePicInput.value || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
+                // Add error handling for broken image
+                previewBotAvatar.onerror = function() {
+                    this.onerror=null; // Avoid infinite loop
+                    this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot'; // Placeholder for broken image
+                };
+            }
+
+            botNameInput.addEventListener('input', () => {
+                updateBotPreview();
+                saveState();
+            });
+
+            botProfilePicInput.addEventListener('input', () => {
+                updateBotPreview();
+                saveState();
             });
             
             // --- FLOW SIMULATION LOGIC ---

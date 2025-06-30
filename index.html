@@ -91,16 +91,11 @@
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border-radius: 6px; border: 1px solid var(--border-color); }
 
-        /* Classe para botões de ação amarelos */
         .btn-action-yellow {
-            background-color: var(--accent-yellow);
-            color: #111;
-            font-weight: 600;
-            transition: background-color 0.2s ease;
+            background-color: var(--accent-yellow); color: #111;
+            font-weight: 600; transition: background-color 0.2s ease;
         }
-        .btn-action-yellow:hover {
-            background-color: var(--accent-yellow-dark);
-        }
+        .btn-action-yellow:hover { background-color: var(--accent-yellow-dark); }
 
         #preview-chat-container {
             background-color: #e5ddd5;
@@ -108,6 +103,34 @@
         }
         #preview-chat-body::-webkit-scrollbar { width: 6px; }
         #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
+        
+        /* Estilos para o player de áudio customizado */
+        .audio-player-container {
+            align-self: flex-start; max-width: 80%; background-color: #fff;
+            padding: 8px; border-radius: 10px; border-top-left-radius: 0;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .audio-player-container img { width: 40px; height: 40px; border-radius: 50%; }
+        .audio-player-container .play-pause-btn {
+            background: none; border: none; font-size: 1.5rem; color: #555; cursor: pointer;
+        }
+        .audio-player-container .progress-bar-container {
+            flex-grow: 1; height: 4px; background-color: #ccc; border-radius: 2px;
+            position: relative; cursor: pointer;
+        }
+        .audio-player-container .progress-bar {
+            height: 100%; background-color: #666; border-radius: 2px;
+            width: 0; position: relative;
+        }
+        .audio-player-container .progress-bar::after {
+            content: ''; position: absolute; right: -6px; top: -4px;
+            width: 12px; height: 12px; border-radius: 50%; background-color: #666;
+        }
+        .audio-player-container .time-info {
+            display: flex; flex-direction: column; align-items: flex-end;
+            font-size: 0.7em; color: #999;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -527,11 +550,10 @@
             switch(type) {
                 case 'delay':
                 case 'audio-message':
-                    const delayTime = (type === 'delay' ? element.dataset.delay : 1.5) * 1000;
-                    const animationName = type === 'delay' ? 'bounce' : 'mic-bounce';
-                    const iconClass = type === 'delay' ? '' : 'fas fa-microphone text-xl text-red-500';
+                    const isAudio = type === 'audio-message';
+                    const animationName = isAudio ? 'mic-bounce' : 'bounce';
                     wrapper.innerHTML = `<div style="align-self: flex-start; display: flex; align-items: center; padding: 10px 15px;">
-                        ${type === 'audio-message' ? `<i class="${iconClass}" style="animation: ${animationName} 1.3s infinite ease-in-out;"></i><span class="text-gray-500 text-sm ml-2"> gravando áudio...</span>` : `
+                        ${isAudio ? `<i class="fas fa-microphone text-xl text-red-500" style="animation: ${animationName} 1.3s infinite ease-in-out;"></i><span class="text-gray-500 text-sm ml-2"> gravando áudio...</span>` : `
                         <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out;"></span>
                         <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -1.1s;"></span>
                         <span style="height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out -0.9s;"></span>`}
@@ -592,31 +614,40 @@
             for (const comp of components) {
                 const type = comp.dataset.componentType;
                 
-                if (type === 'delay') {
+                if (type === 'delay' || type === 'audio-message') {
                     const indicator = createPreviewComponent(comp);
                     chatBody.appendChild(indicator);
                     chatBody.scrollTop = chatBody.scrollHeight;
-                    await delay(comp.dataset.delay * 1000);
+                    const delayTime = (type === 'delay' ? comp.dataset.delay : 1.5) * 1000;
+                    await delay(delayTime);
                     indicator.remove();
-                } else if (type === 'audio-message') {
-                    const indicator = createPreviewComponent(comp);
-                    chatBody.appendChild(indicator);
-                    chatBody.scrollTop = chatBody.scrollHeight;
-                    await delay(1500);
-                    indicator.remove();
-                    
-                    const wrapper = document.createElement('div');
-                    wrapper.style.cssText = "display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px;";
-                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333; width: 250px;">
-                        <audio controls style="width: 100%;" src="${comp.dataset.url}"></audio>
-                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>`;
-                    chatBody.appendChild(wrapper);
 
+                    if (type === 'audio-message') {
+                        const audioPlayer = document.createElement('div');
+                        audioPlayer.style.cssText = "display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px;";
+                        audioPlayer.innerHTML = `<div class="audio-player-container">
+                            <img src="${profilePicUrl}" onerror="this.src='https://placehold.co/40x40/777/FFFFFF?text=??'">
+                            <button class="play-pause-btn"><i class="fas fa-play"></i></button>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <div class="time-info">
+                                <span class="current-time">0:00</span>
+                                <span class="total-time" style="display:none;">0:00</span>
+                                <span class="timestamp">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <audio class="hidden-audio" src="${comp.dataset.url}"></audio>
+                        </div>`;
+                        chatBody.appendChild(audioPlayer);
+                        setupAudioPlayer(audioPlayer);
+                    }
                 } else {
                     const previewElement = createPreviewComponent(comp);
                     if (previewElement) {
                         chatBody.appendChild(previewElement);
+                        if(previewElement.querySelector('.audio-player-container')) {
+                            setupAudioPlayer(previewElement);
+                        }
                         chatBody.scrollTop = chatBody.scrollHeight;
                         await delay(500);
                     }
@@ -625,6 +656,48 @@
             
             testBtn.disabled = false;
             testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
+        }
+
+        function setupAudioPlayer(playerContainer) {
+            const audio = playerContainer.querySelector('.hidden-audio');
+            const playBtn = playerContainer.querySelector('.play-pause-btn i');
+            const progressBar = playerContainer.querySelector('.progress-bar');
+            const currentTimeEl = playerContainer.querySelector('.current-time');
+            const totalTimeEl = playerContainer.querySelector('.total-time');
+
+            const formatTime = (time) => {
+                const minutes = Math.floor(time / 60);
+                const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+                return `${minutes}:${seconds}`;
+            }
+
+            audio.addEventListener('loadedmetadata', () => {
+                totalTimeEl.textContent = formatTime(audio.duration);
+            });
+
+            audio.addEventListener('timeupdate', () => {
+                const progress = (audio.currentTime / audio.duration) * 100;
+                progressBar.style.width = `${progress}%`;
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+            });
+
+            audio.addEventListener('ended', () => {
+                playBtn.classList.remove('fa-pause');
+                playBtn.classList.add('fa-play');
+                progressBar.style.width = '0%';
+            });
+
+            playBtn.parentElement.addEventListener('click', () => {
+                if (audio.paused) {
+                    audio.play();
+                    playBtn.classList.remove('fa-play');
+                    playBtn.classList.add('fa-pause');
+                } else {
+                    audio.pause();
+                    playBtn.classList.remove('fa-pause');
+                    playBtn.classList.add('fa-play');
+                }
+            });
         }
 
         document.getElementById('test-flow-btn').addEventListener('click', runFlowTest);

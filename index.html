@@ -300,8 +300,9 @@
         flowCanvas.addEventListener('mousedown', e => {
             if (e.target.classList.contains('output')) {
                 startElementForLine = e.target.parentElement;
+                // Linha temporária que segue o mouse
                 currentDrawingLine = new LeaderLine(e.target, LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }), {
-                    color: 'rgba(255, 210, 63, 0.7)', size: 3, endPlug: 'behind'
+                    color: 'rgba(255, 210, 63, 0.7)', size: 2, endPlug: 'behind'
                 });
             }
         });
@@ -315,17 +316,25 @@
         
         document.addEventListener('mouseup', e => {
             if (currentDrawingLine) {
-                const endConnector = e.target.closest('.connector-point.input');
+                // Esconde a linha temporária antes de procurar o alvo
+                currentDrawingLine.hide();
+                const endElement = e.target.closest('.canvas-component');
+                
+                // Remove a linha temporária permanentemente
                 currentDrawingLine.remove();
                 currentDrawingLine = null;
-                if (endConnector && endConnector.parentElement !== startElementForLine) {
-                    const line = new LeaderLine(startElementForLine.querySelector('.output'), endConnector, {
-                        color: 'var(--accent-yellow)', size: 3, path: 'fluid',
-                        startSocketGravity: 60, endSocketGravity: 60,
-                        dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 8 },
+                
+                if (endElement && endElement !== startElementForLine) {
+                    const line = new LeaderLine(startElementForLine.querySelector('.output'), endElement.querySelector('.input'), {
+                        color: 'var(--accent-yellow)',
+                        size: 2,
+                        path: 'fluid',
+                        startSocketGravity: 60,
+                        endSocketGravity: 60,
+                        dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
                         endPlug: 'behind'
                     });
-                    connections.push({ line, start: startElementForLine, end: endConnector.parentElement });
+                    connections.push({ line, start: startElementForLine, end: endElement });
                 }
                 startElementForLine = null;
             }
@@ -361,7 +370,6 @@
             chatBody.scrollTop = chatBody.scrollHeight;
         }
 
-        // Funções do modal e de criação da prévia (inalteradas)
         function openEditModal(element) {
             elementToEdit = element;
             const type = element.dataset.componentType;

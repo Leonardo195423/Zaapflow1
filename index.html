@@ -558,7 +558,7 @@
                     break;
                 case 'video-message':
                     const videoId = element.dataset.url.split('v=')[1]?.split('&')[0] || element.dataset.url.split('/').pop();
-                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
+                    wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: transparent; padding: 5px; border-radius: 10px;">
                         <iframe style="width: 100%; aspect-ratio: 16/9; border-radius: 8px;" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
                     </div>`;
                     break;
@@ -571,12 +571,12 @@
                 case 'cta-button':
                     const color = element.dataset.color;
                     const neon = element.dataset.neon === 'true' ? `box-shadow: 0 0 10px ${color}, 0 0 20px ${color}80;` : '';
-                    wrapper.innerHTML = `<div style="padding: 10px;"><a href="${element.dataset.url}" target="_blank" style="padding: 12px 24px; background-color: ${color}; color: #111; font-weight: bold; border-radius: 30px; text-decoration: none; ${neon}">${element.dataset.text}</a></div>`;
+                    wrapper.innerHTML = `<div style="padding: 10px; align-self: center;"><a href="${element.dataset.url}" target="_blank" style="padding: 12px 24px; background-color: ${color}; color: #111; font-weight: bold; border-radius: 30px; text-decoration: none; ${neon}">${element.dataset.text}</a></div>`;
                     wrapper.style.alignItems = 'center';
                     break;
                 case 'user-input':
                     wrapper.innerHTML = `<div style="width: 100%; background-color: #f0f2f5; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
-                        <input type="text" placeholder="${element.dataset.placeholder}" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em;" disabled>
+                        <input type="text" placeholder="${element.dataset.placeholder}" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000;" disabled>
                         <button style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em;"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>`;
                     break;
@@ -648,10 +648,19 @@
                     const previewElement = createPreviewComponent(comp);
                     chatBody.appendChild(previewElement);
                     chatBody.scrollTop = chatBody.scrollHeight;
-                    await delay(2500); // Time for the user to "read" and "type"
+                    await delay(2500);
                     previewElement.remove();
-                }
-                else {
+                    
+                    // Simula a resposta do usuário
+                    const sentMessage = document.createElement('div');
+                    sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
+                    sentMessage.innerHTML = `<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                        Resposta simulada
+                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>`;
+                    chatBody.appendChild(sentMessage);
+
+                } else {
                     const previewElement = createPreviewComponent(comp);
                     if (previewElement) {
                         chatBody.appendChild(previewElement);

@@ -178,6 +178,7 @@
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none; /* Make SVG layer non-interactive */
         }
 
         /* --- BLOCOS NO CANVAS --- */
@@ -201,7 +202,7 @@
             z-index: 6; /* Bring selected node to front */
         }
         .flow-node.dragging {
-            z-index: 9999 !important; /* Extremely high z-index to ensure it's always on top */
+            z-index: 999 !important; /* High z-index to ensure it's always on top */
         }
 
         .node-header {
@@ -660,15 +661,8 @@
             });
 
             canvasContainer.addEventListener('mousedown', (e) => {
-                // If click is on a node or connector, do not start canvas pan.
-                if (e.target.closest('.flow-node')) {
-                    const clickedNode = e.target.closest('.flow-node');
-                    // Only select the node if the click is not on an input/textarea/connector/delete button,
-                    // otherwise, allow interaction with the child element.
-                    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT' && !e.target.classList.contains('connector') && !e.target.classList.contains('delete-node-btn')) {
-                        selectNode(clickedNode.id);
-                    }
-                    return; // Allow makeNodeDraggable or handleConnectorClick to handle the event
+                if (e.target.closest('.flow-node') || e.target.closest('.connector')) {
+                    return; 
                 }
                 
                 selectNode(null); // Deselect any node when starting canvas pan
@@ -694,46 +688,31 @@
                 redrawAllConnections(); 
             }
 
-            // Converts screen coordinates to canvas coordinates (untransformed)
             function toCanvasCoords(e) {
-                const rect = flowCanvas.getBoundingClientRect(); // Use flowCanvas rect as it's the transformed one
-                const xOnCanvas = e.clientX - rect.left;
-                const yOnCanvas = e.clientY - rect.top;
+                const rect = canvasContainer.getBoundingClientRect();
                 return {
-                    x: xOnCanvas / pan.scale, // Un-scale relative to flowCanvas's internal coords
-                    y: yOnCanvas / pan.scale  // Un-scale relative to flowCanvas's internal coords
+                    x: (e.clientX - rect.left - pan.x) / pan.scale,
+                    y: (e.clientY - rect.top - pan.y) / pan.scale
                 };
             }
 
             // --- DRAG & DROP LOGIC ---
-            // Add listener to drag node templates from side panel
             sidePanel.querySelectorAll('.node-template').forEach(template => {
                 template.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', e.target.dataset.type);
-                    e.dataTransfer.setDragImage(new Image(), 0, 0); // Hide the default drag image
                 });
             });
 
-            // Allow dropping on canvas
             canvasContainer.addEventListener('dragover', (e) => e.preventDefault());
             canvasContainer.addEventListener('drop', (e) => {
                 e.preventDefault();
                 const type = e.dataTransfer.getData('text/plain');
-                if (!type) return; // If no type, it's not a template drag
+                if (!type) return;
                 const coords = toCanvasCoords(e);
                 createNode(type, coords.x, coords.y);
             });
 
             // --- BLOCK CREATION ---
-            /**
-             * Creates a new block (node) on the canvas.
-             * @param {string} type - The type of the node (e.g., 'message', 'question').
-             * @param {number} x - X position on canvas.
-             * @param {number} y - Y position on canvas.
-             * @param {string|null} id - Optional ID for the node (used when loading state).
-             * @param {Array<string>} content - Initial node content.
-             * @returns {HTMLElement} The created node element.
-             */
             function createNode(type, x, y, id = null, content = []) {
                 const nodeId = id || `node-${nodeIdCounter++}`;
                 const nodeEl = document.createElement('div');
@@ -751,13 +730,13 @@
                         headerText = 'Início';
                         headerIcon = 'fa-flag-checkered';
                         contentHtml = `<p style="text-align:center;">Ponto de partida do fluxo</p>`;
-                        hasInputConnector = false; // No input
+                        hasInputConnector = false;
                         break;
-                    case 'end': // New 'end' node type
+                    case 'end':
                         headerText = 'Fim';
                         headerIcon = 'fa-stop-circle';
                         contentHtml = `<p style="text-align:center;">Ponto final do fluxo</p>`;
-                        hasOutputConnector = false; // No output
+                        hasOutputConnector = false;
                         break;
                     case 'message':
                         headerText = 'Mensagem';
@@ -796,13 +775,12 @@
                             <label>Texto do Botão:</label><textarea placeholder="Comprar Agora">${content[0] || 'Comprar Agora'}</textarea>
                             <label>URL do Link:</label><textarea placeholder="https://seusite.com">${content[1] || ''}</textarea>
                         `;
-                        hasOutputConnector = false; // No output
+                        hasOutputConnector = false;
                         break;
                     case 'multipleChoice':
                         headerText = 'Múltiplas Escolhas';
                         headerIcon = 'fa-check-double';
                         let buttonsHtml = '';
-                        // First content item is the question, rest are options
                         const options = content.length > 1 ? content.slice(1) : ['Opção 1'];
                         buttonsHtml = options.map((text, i) =>
                             `<div class="button-option" data-index="${i}"><input type="text" value="${text}"><i class="fas fa-times remove-btn"></i></div>`
@@ -824,205 +802,144 @@
                 }
 
                 nodeEl.innerHTML = `
-                    <div class="node-header"><i class="fas ${headerIcon}"></i> ${headerText} <i class="fas fa-trash-alt delete-node-btn"></i></div>
+                    <div class="node-header"><i class="fas ${headerIcon}"></i> ${headerText} <button class="delete-node-btn"><i class="fas fa-trash-alt"></i></button></div>
                     <div class="node-content">${contentHtml}</div>
                 `;
                 
-                // Add input connectors
                 if (hasInputConnector) {
                     nodeEl.insertAdjacentHTML('beforeend', `<div class="connector input"></div>`);
                 }
                 
-                // Add output connectors
                 if (hasOutputConnector) {
                     if (type === 'question') {
-                        // Specific connectors for Yes/No
-                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" data-choice="yes" style="top: 35%;"></div>`);
-                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" data-choice="no" style="top: 65%;"></div>`);
-                    } else if (type === 'multipleChoice') {
-                        // Connectors for multiple choice are added dynamically
-                        // `updateMultipleChoiceConnectors` will be called right after node creation
-                    } else {
-                        // Standard output connector for other node types
+                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" data-choice="yes" style="top: 35%;"><span style="position: absolute; right: 20px; font-size: 11px; color: #aaffaa;">Sim</span></div>`);
+                        nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" data-choice="no" style="top: 65%;"><span style="position: absolute; right: 20px; font-size: 11px; color: #ffaaaa;">Não</span></div>`);
+                    } else if (type !== 'multipleChoice') {
                         nodeEl.insertAdjacentHTML('beforeend', `<div class="connector output" style="top: 50%; transform: translateY(-50%);"></div>`);
                     }
                 }
 
-                flowCanvas.appendChild(nodeEl); // Add the node directly to flowCanvas
+                flowCanvas.appendChild(nodeEl);
 
-                // Initialize or update node data
                 nodes[nodeId] = {
                     id: nodeId,
                     el: nodeEl,
                     type: type,
                     x: x,
                     y: y,
-                    // Ensure content is correctly initialized
                     content: content.length > 0 ? content : (type === 'multipleChoice' ? ['Nova Pergunta?', 'Opção 1'] : [''])
                 };
-                // Update content for userInput and cta, which have multiple fields
-                if (type === 'userInput') {
+                if (type === 'userInput' || type === 'cta') {
                     nodes[nodeId].content = [content[0] || '', content[1] || ''];
-                } else if (type === 'cta') {
-                    nodes[nodeId].content = [content[0] || 'Comprar Agora', content[1] || ''];
                 } else if (type === 'delay') {
                     nodes[nodeId].content = [content[0] || '1500'];
                 }
 
 
-                // For multiple choice nodes, update connectors and content
                 if (type === 'multipleChoice') {
-                    // Ensure content[0] is the question and the rest are options
                     if (content.length === 0) {
                         nodes[nodeId].content = ['Nova Pergunta?', 'Opção 1'];
                     } else if (content.length === 1) {
                         nodes[nodeId].content = [content[0], 'Opção 1'];
                     }
-                    updateMultipleChoiceConnectors(nodeEl, nodes[nodeId].content.length - 1);
+                    updateMultipleChoiceConnectors(nodeEl);
                 }
 
                 makeNodeDraggable(nodeEl);
                 setupNodeEventListeners(nodeEl);
-                if (!id) saveState(); // Save state only if it's a new node
+                if (!id) saveState();
                 return nodeEl;
             }
 
-            /**
-             * Updates output connectors for multiple choice nodes.
-             * Recalculates their positions based on the number of options.
-             * @param {HTMLElement} nodeEl - The node element.
-             * @param {number} count - The number of options (and thus output connectors).
-             */
-            function updateMultipleChoiceConnectors(nodeEl, count) {
-                // Remove existing output connectors to redraw
+            function updateMultipleChoiceConnectors(nodeEl) {
                 nodeEl.querySelectorAll('.connector.output').forEach(c => c.remove());
                 
-                // Force a reflow to ensure offsetHeight is accurate
-                nodeEl.offsetHeight; 
+                const optionDivs = nodeEl.querySelectorAll('.button-option');
+                const totalHeight = nodeEl.querySelector('.node-content').offsetHeight;
+                const startY = nodeEl.querySelector('.node-header').offsetHeight + 80; // Approximate start after question
+                const spacing = (totalHeight - startY) / (optionDivs.length + 1);
 
-                const headerHeight = nodeEl.querySelector('.node-header').offsetHeight;
-                const nodeContentEl = nodeEl.querySelector('.node-content');
-                const contentPaddingTop = parseFloat(window.getComputedStyle(nodeContentEl).paddingTop);
-                
-                // Calculate position of connectors relative to the top of `node-content`
-                let currentY = headerHeight + contentPaddingTop; // Starts after header and content top padding
-                const questionTextarea = nodeEl.querySelector('.node-content > textarea');
-                if (questionTextarea) {
-                    currentY += questionTextarea.offsetHeight + 8; // Height of textarea + gap
-                }
-                
-                nodeEl.querySelectorAll('.button-option').forEach((optionDiv, i) => {
+                optionDivs.forEach((optionDiv, i) => {
                     const connector = document.createElement('div');
                     connector.className = 'connector output';
-                    connector.dataset.choice = i; // Stores the option index
+                    connector.dataset.choice = i;
+                    const optionText = optionDiv.querySelector('input').value.substring(0, 10) + '...';
+                    connector.innerHTML = `<span style="position: absolute; right: 20px; font-size: 11px; color: #aaa;">${optionText}</span>`;
                     
-                    // Vertical position of connector: center of the option div
-                    connector.style.top = `${currentY + optionDiv.offsetHeight / 2}px`;
-                    connector.style.transform = 'translateY(-50%)'; // Vertically center
+                    const topPosition = optionDiv.offsetTop + (optionDiv.offsetHeight / 2);
+                    connector.style.top = `${topPosition}px`;
+                    
                     nodeEl.appendChild(connector);
-
-                    currentY += optionDiv.offsetHeight + 8; // Advance to the next item (+ gap)
                 });
-
-                setupNodeEventListeners(nodeEl); // Re-add listeners for new connectors
-                redrawAllConnections(); // Redraw all connections to update lines
+                setupNodeEventListeners(nodeEl);
             }
 
-            /**
-             * Sets up event listeners for elements within a node (inputs, buttons, connectors).
-             * @param {HTMLElement} nodeEl - The node element.
-             */
             function setupNodeEventListeners(nodeEl) {
                 const addBtn = nodeEl.querySelector('.add-btn');
                 if (addBtn) {
                     addBtn.onclick = () => {
                         const node = nodes[nodeEl.id];
                         const newOptionText = `Opção ${node.content.length}`;
-                        node.content.push(newOptionText); // Add new option to content
-                        const newIndex = node.content.length - 2; // Index of new option (after the question)
+                        node.content.push(newOptionText);
+                        const newIndex = node.content.length - 2;
                         const container = nodeEl.querySelector('#buttons-container');
                         container.insertAdjacentHTML('beforeend', `<div class="button-option" data-index="${newIndex}"><input type="text" value="${newOptionText}"><i class="fas fa-times remove-btn"></i></div>`);
-                        updateMultipleChoiceConnectors(nodeEl, node.content.length - 1); // Update connectors
-                        setupNodeEventListeners(nodeEl); // Re-setup listeners for the new remove button
+                        updateMultipleChoiceConnectors(nodeEl);
+                        setupNodeEventListeners(nodeEl);
                         saveState();
                     };
                 }
-                // Add listeners to remove option buttons
                 nodeEl.querySelectorAll('.remove-btn').forEach(btn => {
                     btn.onclick = (e) => {
-                        e.stopPropagation(); // Prevent node drag from starting
+                        e.stopPropagation();
                         const node = nodes[nodeEl.id];
                         const optionDiv = btn.closest('.button-option');
                         const indexToRemove = parseInt(optionDiv.dataset.index, 10);
-                        // Remove option from content array
-                        node.content.splice(indexToRemove + 1, 1); // +1 because content[0] is the question
-                        optionDiv.remove(); // Remove HTML element
+                        node.content.splice(indexToRemove + 1, 1);
+                        optionDiv.remove();
 
-                        // Update data-index for remaining buttons
                         nodeEl.querySelectorAll('.button-option').forEach((div, i) => div.dataset.index = i);
-                        updateMultipleChoiceConnectors(nodeEl, node.content.length - 1);
-                        setupNodeEventListeners(nodeEl); // Re-setup listeners
+                        updateMultipleChoiceConnectors(nodeEl);
+                        setupNodeEventListeners(nodeEl);
                         saveState();
                     };
                 });
-                // Add listeners to inputs and textareas to save node content
                 nodeEl.querySelectorAll('textarea, input').forEach((input) => {
                     input.addEventListener('input', () => {
-                        // Collect all node content. Order matters.
-                        const newContent = [];
-                        // First textarea is usually the main message/question
-                        const mainTextarea = nodeEl.querySelector('textarea');
-                        if (mainTextarea) newContent.push(mainTextarea.value);
-
-                        if (nodeEl.dataset.type === 'multipleChoice') {
-                            // For multiple choice, collect values from option inputs
-                            nodeEl.querySelectorAll('#buttons-container input').forEach(optInput => {
-                                newContent.push(optInput.value);
-                            });
-                        } else if (nodeEl.dataset.type === 'userInput' || nodeEl.dataset.type === 'cta') {
-                            // For userInput and cta, collect the second input/textarea
-                            const inputs = nodeEl.querySelectorAll('textarea, input[type="text"]');
-                            if (inputs.length > 0) newContent.push(inputs[0].value);
-                            if (inputs.length > 1) newContent.push(inputs[1].value);
-                        } else if (nodeEl.dataset.type === 'delay') {
-                            const delayInput = nodeEl.querySelector('input[type="number"]');
-                            if (delayInput) newContent[0] = delayInput.value;
-                        }
+                        const newContent = Array.from(nodeEl.querySelectorAll('.node-content textarea, .node-content input'))
+                                                .map(el => el.value);
                         nodes[nodeEl.id].content = newContent;
+                        if(nodes[nodeEl.id].type === 'multipleChoice') {
+                            updateMultipleChoiceConnectors(nodeEl);
+                        }
                         saveState();
                     });
-                    // Stop propagation for click events on inputs/textareas to prevent node drag
                     input.addEventListener('mousedown', (e) => e.stopPropagation());
                 });
 
-                // Add listener for node delete button
                 const deleteBtn = nodeEl.querySelector('.delete-node-btn');
                 if (deleteBtn) {
                     deleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Prevents node selection/drag from starting
+                        e.stopPropagation();
                         showConfirmModal(
                             'Excluir Bloco?',
-                            `Tem certeza que deseja excluir o bloco "${nodes[nodeEl.id].el.querySelector('.node-header').textContent.trim().replace('🗑️', '').trim()}"?`,
+                            `Tem certeza que deseja excluir este bloco?`,
                             () => deleteNode(nodeEl.id)
                         );
                     });
                 }
 
-
-                // Add listeners for connectors
                 nodeEl.querySelectorAll('.connector').forEach(c => {
                     c.addEventListener('mousedown', (e) => {
-                        e.stopPropagation(); // Prevents node drag or canvas pan
-                        handleConnectorClick(nodeEl.id, c, e); // Pass event to function
+                        e.stopPropagation();
+                        handleConnectorClick(nodeEl.id, c, e);
                     });
-                    // Add 'mouseover' listener to highlight input connector
-                    c.addEventListener('mouseover', () => {
+                     c.addEventListener('mouseover', () => {
                         if (isConnecting && c.classList.contains('input') && connectionStart.nodeId !== nodeEl.id) {
                             c.classList.add('highlight-target');
                             hoveredInputConnector = c;
                         }
                     });
-                    // Remove highlight on mouseout from connector
                     c.addEventListener('mouseout', () => {
                         if (hoveredInputConnector) {
                             hoveredInputConnector.classList.remove('highlight-target');
@@ -1032,10 +949,6 @@
                 });
             }
             
-            /**
-             * Makes a node draggable.
-             * @param {HTMLElement} nodeEl - The node element to be dragged.
-             */
             function makeNodeDraggable(nodeEl) {
                 let dragOffsetX, dragOffsetY;
                 let isDraggingNode = false;
@@ -1043,68 +956,49 @@
                 const onMouseMove = (e) => {
                     if (!isDraggingNode) return;
                     e.preventDefault(); 
-                    // Calculate new node position adjusting for canvas pan and zoom
-                    const newX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - dragOffsetX;
-                    const newY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - dragOffsetY;
+                    const newX = (e.clientX - pan.x) / pan.scale - dragOffsetX;
+                    const newY = (e.clientY - pan.y) / pan.scale - dragOffsetY;
                     nodeEl.style.left = `${newX}px`;
                     nodeEl.style.top = `${newY}px`;
                     nodes[nodeEl.id].x = newX;
                     nodes[nodeEl.id].y = newY;
-                    updateConnectionsForNode(nodeEl.id); // Update lines connected to this node
+                    updateConnectionsForNode(nodeEl.id);
                 };
 
                 const onMouseUp = () => {
                     isDraggingNode = false;
-                    nodeEl.classList.remove('dragging'); // Remove dragging class
+                    nodeEl.classList.remove('dragging');
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
-                    saveState(); // Save state after drag
+                    saveState();
                 };
 
                 nodeEl.addEventListener('mousedown', (e) => {
-                    // Check if click was on an input, textarea, connector or delete button.
-                    // If so, allow native interaction and do not start node drag.
-                    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.classList.contains('connector') || e.target.classList.contains('delete-node-btn')) {
-                        e.stopPropagation(); // Prevent event from bubbling to parent node or canvas (to not start pan)
-                        return; // Exit function, do not start node drag
+                    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.closest('.connector') || e.target.closest('.delete-node-btn')) {
+                        return;
                     }
                     
-                    e.preventDefault(); // Prevents native browser ghosting
-                                        // This preventDefault is only called if it's a node drag (not input/connector/delete button)
-
-                    selectNode(nodeEl.id); // Select clicked node
+                    e.preventDefault();
+                    selectNode(nodeEl.id);
                     isDraggingNode = true;
-                    nodeEl.classList.add('dragging'); // Add dragging class for elevated z-index
+                    nodeEl.classList.add('dragging');
 
-                    // Calculate click offset within the node for smooth dragging
-                    // Offsets are calculated in flowCanvas coordinate system.
-                    dragOffsetX = (e.clientX - flowCanvas.getBoundingClientRect().left) / pan.scale - nodes[nodeEl.id].x;
-                    dragOffsetY = (e.clientY - flowCanvas.getBoundingClientRect().top) / pan.scale - nodes[nodeEl.id].y;
+                    dragOffsetX = (e.clientX - pan.x) / pan.scale - nodes[nodeEl.id].x;
+                    dragOffsetY = (e.clientY - pan.y) / pan.scale - nodes[nodeEl.id].y;
                     
                     document.addEventListener('mousemove', onMouseMove);
                     document.addEventListener('mouseup', onMouseUp);
                 });
             }
             
-            /**
-             * Gets the absolute position of a connector on the canvas (relative to flowCanvas).
-             * @param {HTMLElement} connectorEl - The connector element.
-             * @returns {{x: number, y: number}} X and Y coordinates.
-             */
             function getConnectorPosition(connectorEl) {
                 const nodeEl = connectorEl.closest('.flow-node');
-                // Coordinates are already relative to flowCanvas, as svgLayer is also a child.
                 return {
                     x: nodeEl.offsetLeft + connectorEl.offsetLeft + connectorEl.offsetWidth / 2,
                     y: nodeEl.offsetTop + connectorEl.offsetTop + connectorEl.offsetHeight / 2
                 };
             }
             
-            /**
-             * Selects a node by its ID, adding the 'selected' class.
-             * Deselects the previously selected node.
-             * @param {string|null} nodeId - The ID of the node to be selected, or null to deselect all.
-             */
             function selectNode(nodeId) {
                 if (selectedNodeId && nodes[selectedNodeId] && nodes[selectedNodeId].el) {
                     nodes[selectedNodeId].el.classList.remove('selected');
@@ -1115,191 +1009,91 @@
                 }
             }
 
-            /**
-             * Deletes a node and its connections.
-             * @param {string} nodeId - The ID of the node to be deleted.
-             */
             function deleteNode(nodeId) {
-                // Remove connections involving the node to be deleted
                 connections = connections.filter(conn => conn.from !== nodeId && conn.to !== nodeId);
-                // Remove HTML element of the node
                 if (nodes[nodeId] && nodes[nodeId].el) {
                     nodes[nodeId].el.remove();
                 }
-                // Remove node from 'nodes' object
                 delete nodes[nodeId];
-                selectedNodeId = null; // Deselect node
-                redrawAllConnections(); // Redraw all lines to reflect removal
-                saveState(); // Save current state
+                selectedNodeId = null;
+                redrawAllConnections();
+                saveState();
             }
 
-            // Add listener for 'Delete' or 'Backspace' key to delete selected node
             document.addEventListener('keydown', (e) => {
                 if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {
-                    // Prevent default behavior if on an input/textarea inside the node
-                    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+                    if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') {
                         return;
                     }
                     showConfirmModal(
                         'Excluir Bloco?',
-                        `Tem certeza que deseja excluir o bloco "${nodes[selectedNodeId].el.querySelector('.node-header').textContent.trim().replace('🗑️', '').trim()}"?`,
+                        `Tem certeza que deseja excluir o bloco selecionado?`,
                         () => deleteNode(selectedNodeId)
                     );
                 }
             });
 
-            // Global mouseup handler for connection logic
             function handleGlobalMouseUp(e) {
-                if (!isConnecting) return; // Only proceed if a connection attempt is active
-                console.log("Global mouseup detected. isConnecting:", isConnecting);
-
-                const targetConnector = e.target.closest('.connector.input'); // Find closest input connector
+                if (!isConnecting) return;
                 
-                if (targetConnector && targetConnector.closest('.flow-node').id !== connectionStart.nodeId) { // Ensure not connecting to itself
-                    console.log("MouseUp on a valid and different input connector. Attempting to finalize connection.");
-                    
+                const targetConnector = hoveredInputConnector;
+                
+                if (targetConnector) {
                     const targetNodeId = targetConnector.closest('.flow-node').id;
-
-                    // Prevent connecting to 'start' node
-                    if (nodes[targetNodeId].type === 'start') {
-                        showAlertModal('Erro de Conexão', 'Nós do tipo "Início" não podem ter entradas.');
-                        resetConnectionState();
-                        return;
-                    }
-
-                    // Remove any existing connection that starts from the same source output/choice
                     connections = connections.filter(c => !(c.from === connectionStart.nodeId && c.choice === connectionStart.choice));
-
-                    // Remove any existing connection that points to the target input
-                    connections = connections.filter(c => !(c.to === targetNodeId));
-                    
+                    connections = connections.filter(c => c.to !== targetNodeId);
                     createConnection(connectionStart.nodeId, targetNodeId, connectionStart.choice);
-                } else {
-                    console.log("MouseUp not on a valid target connector or self-connecting. Resetting state.");
                 }
-                resetConnectionState(); // Always reset the state after a mouseup, regardless if a connection was made or not
+                resetConnectionState();
             }
 
-
-            /**
-             * Handles click on a connector to start or finalize a connection.
-             * @param {string} nodeId - The ID of the node the connector belongs to.
-             * @param {HTMLElement} connector - The clicked connector element.
-             * @param {MouseEvent} e - The mouse event.
-             */
             function handleConnectorClick(nodeId, connector, e) {
                 e.preventDefault(); 
                 e.stopPropagation(); 
 
-                // If a connection is already in progress, clicking another connector should reset it
                 if (isConnecting) {
-                    console.log("Attempted to start new connection while one was already active. Resetting existing attempt.");
                     resetConnectionState();
-                    // If the click was on an output connector, we can proceed to start a new connection
-                    if (connector.classList.contains('output')) {
-                        startNewConnection(nodeId, connector);
-                    }
-                    return;
                 }
 
-                // Start a new connection (only from output connectors)
                 if (connector.classList.contains('output')) {
-                    // Prevent connecting from 'end' node
-                    if (nodes[nodeId].type === 'end') {
-                        showAlertModal('Erro de Conexão', 'Nós do tipo "Fim" não podem ter saídas.');
-                        return;
-                    }
                     startNewConnection(nodeId, connector);
                 }
             }
 
-            /**
-             * Starts the process of drawing a new connection line.
-             * @param {string} nodeId - The ID of the starting node.
-             * @param {HTMLElement} connector - The output connector element.
-             */
             function startNewConnection(nodeId, connector) {
-                console.log(`Starting connection from node ${nodeId}, choice: ${connector.dataset.choice || 'default'}`);
                 isConnecting = true;
                 connectionStart = {
                     nodeId: nodeId,
                     choice: connector.dataset.choice !== undefined ? connector.dataset.choice : null
                 };
-                currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Use path for bezier
-                currentTempLine.setAttribute('stroke', '#e94560'); // Neon red
-                currentTempLine.setAttribute('stroke-width', '2'); // Thin line
-                currentTempLine.setAttribute('fill', 'none'); // No fill for lines
+                currentTempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                currentTempLine.setAttribute('stroke', 'var(--primary-accent)');
+                currentTempLine.setAttribute('stroke-width', '2');
+                currentTempLine.setAttribute('fill', 'none');
+                currentTempLine.style.pointerEvents = 'none';
                 svgLayer.appendChild(currentTempLine);
-                const startPos = getConnectorPosition(connector);
-                currentTempLine.setAttribute('d', `M ${startPos.x} ${startPos.y} L ${startPos.x} ${startPos.y}`); // Initial straight line
                 
                 document.addEventListener('mousemove', onDrawingConnection);
-                document.addEventListener('mouseup', handleGlobalMouseUp); // Attach without {once:true}
+                document.addEventListener('mouseup', handleGlobalMouseUp, { once: true });
             }
 
-
-            /**
-             * Calculates the SVG path for a Bézier curve between two points.
-             * @param {number} x1 - Initial X.
-             * @param {number} y1 - Initial Y.
-             * @param {number} x2 - Final X.
-             * @param {number} y2 - Final Y.
-             * @returns {string} The 'd' attribute for the SVG path.
-             */
             function getBezierPath(x1, y1, x2, y2) {
-                const dx = Math.abs(x2 - x1) * 0.5; // Adjustment to control "curviness"
-                let cp1x = x1 + dx;
-                let cp1y = y1;
-                let cp2x = x2 - dx;
-                let cp2y = y2;
-
-                // Adjust control points for smoother curves when moving backwards (x1 > x2)
-                if (x1 > x2) {
-                    cp1x = x1 + 50; // Force bend outwards
-                    cp2x = x2 - 50; // Force bend outwards
-                }
-
+                const dx = Math.abs(x2 - x1) * 0.6;
+                const cp1x = x1 + dx;
+                const cp1y = y1;
+                const cp2x = x2 - dx;
+                const cp2y = y2;
                 return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
             }
 
-            /**
-             * Updates the position of the temporary line during connection drag and highlights target.
-             * @param {MouseEvent} e - The mouse event.
-             * @returns {void}
-             */
             function onDrawingConnection(e) {
-                if (!currentTempLine) return; // Ensure temporary line exists
-                const coords = toCanvasCoords(e); // Convert to canvas coordinates (untransformed)
-                const startX = parseFloat(currentTempLine.getAttribute('d').split(' ')[1]);
-                const startY = parseFloat(currentTempLine.getAttribute('d').split(' ')[2]);
-                currentTempLine.setAttribute('d', getBezierPath(startX, startY, coords.x, coords.y));
-
-                // Input connector highlight logic
-                if (hoveredInputConnector) {
-                    hoveredInputConnector.classList.remove('highlight-target');
-                    hoveredInputConnector = null;
-                }
-
-                // Check if mouse is over a valid input connector (not the original output connector)
-                const targetElement = document.elementFromPoint(e.clientX, e.clientY);
-                if (targetElement && targetElement.classList.contains('connector') && targetElement.classList.contains('input')) {
-                    const targetNode = targetElement.closest('.flow-node');
-                    if (targetNode) {
-                        const targetNodeId = targetNode.id;
-                        // Ensure we are not over the source node of the connection AND not trying to connect to 'start' or 'end' input
-                        if (targetNodeId !== connectionStart.nodeId && nodes[targetNodeId].type !== 'start' && nodes[targetNodeId].type !== 'end') {  
-                            hoveredInputConnector = targetElement;
-                            hoveredInputConnector.classList.add('highlight-target');
-                        }
-                    }
-                }
+                if (!currentTempLine) return;
+                const startPos = getConnectorPosition(nodes[connectionStart.nodeId].el.querySelector(`.connector.output[data-choice="${connectionStart.choice}"]`) || nodes[connectionStart.nodeId].el.querySelector('.connector.output'));
+                const endCoords = toCanvasCoords({ clientX: e.clientX, clientY: e.clientY });
+                currentTempLine.setAttribute('d', getBezierPath(startPos.x, startPos.y, endCoords.x, endCoords.y));
             }
 
-            /**
-             * Resets the connection state (removes temporary line, flags).
-             */
             function resetConnectionState() { 
-                console.log("Resetting connection state.");
                 isConnecting = false;
                 connectionStart = {};
                 if (currentTempLine) {
@@ -1311,52 +1105,30 @@
                     hoveredInputConnector = null;
                 }
                 document.removeEventListener('mousemove', onDrawingConnection);
-                document.removeEventListener('mouseup', handleGlobalMouseUp); // Explicitly remove
+                document.removeEventListener('mouseup', handleGlobalMouseUp);
             }
 
-            /**
-             * Creates a connection between two nodes.
-             * Removes any existing connection from the same output.
-             * @param {string} fromId - Source node ID.
-             * @param {string} toId - Target node ID.
-             * @param {string|null} choice - Output choice (for question/multiple choice nodes).
-             */
             function createConnection(fromId, toId, choice = null) {
-                console.log(`Creating connection: from ${fromId}, to ${toId}, choice: ${choice}`);
-                const newConnection = { from: fromId, to: toId, choice, lineEl: null }; // lineEl will be defined in redraw
+                const newConnection = { from: fromId, to: toId, choice };
                 connections.push(newConnection);
-                redrawAllConnections(); // Redraw all lines to include the new one
-                saveState(); // Save state
+                redrawAllConnections();
+                saveState();
             }
 
-            /**
-             * Updates the position of a single SVG connection line.
-             * @param {object} conn - The connection object containing source/target IDs and line element.
-             */
             function updateConnectionLine(conn) {
                 const fromNode = nodes[conn.from];
                 const toNode = nodes[conn.to];
-                if (!fromNode || !toNode || !conn.lineEl) {
-                    // If nodes or line no longer exist, remove the line to prevent orphans
-                    if (conn.lineEl) conn.lineEl.remove();
-                    return;
-                }
+                if (!fromNode || !toNode || !conn.lineEl) return;
 
                 let fromConnector;
                 if (conn.choice !== null) {
-                    // For choice connectors (Yes/No, Multiple Choice)
                     fromConnector = fromNode.el.querySelector(`.connector.output[data-choice="${conn.choice}"]`);
                 } else {
-                    // For standard output connectors
                     fromConnector = fromNode.el.querySelector('.connector.output:not([data-choice])');
                 }
                 const toConnector = toNode.el.querySelector('.connector.input');
 
-                if (!fromConnector || !toConnector) {
-                    // If connectors are not found (node changed, etc.), remove the line
-                    if (conn.lineEl) conn.lineEl.remove();
-                    return;
-                }
+                if (!fromConnector || !toConnector) return;
 
                 const startPos = getConnectorPosition(fromConnector);
                 const endPos = getConnectorPosition(toConnector);
@@ -1364,10 +1136,6 @@
                 conn.lineEl.setAttribute('d', getBezierPath(startPos.x, startPos.y, endPos.x, endPos.y));
             }
 
-            /**
-             * Updates connection lines for a specific node (when it's moved).
-             * @param {string} nodeId - The ID of the node that was moved.
-             */
             function updateConnectionsForNode(nodeId) {
                 connections.forEach(conn => {
                     if (conn.from === nodeId || conn.to === nodeId) {
@@ -1376,48 +1144,27 @@
                 });
             }
 
-            /**
-             * Clears and redraws all SVG connection lines.
-             */
             function redrawAllConnections() {
-                // Filter out any connections that refer to non-existent nodes first.
-                // This ensures we only attempt to draw valid connections and clean up old ones.
-                connections = connections.filter(conn => nodes[conn.from] && nodes[conn.to]);
-
-                // Clear only lines, keeping <defs> if any.
-                Array.from(svgLayer.children).forEach(child => {
-                    if (child.tagName === 'path') { // Lines are paths now
-                        child.remove();
-                    }
-                });
-
+                svgLayer.innerHTML = '';
                 connections.forEach(conn => {
-                    // At this point, we are sure nodes[conn.from] and nodes[conn.to] exist due to the filter above.
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path'); // Create a path element
-                    line.setAttribute('stroke', '#e94560'); // Neon red
-                    line.setAttribute('stroke-width', '2'); // Thin line
-                    line.setAttribute('fill', 'none'); // No fill for lines
-                    conn.lineEl = line; // Store reference to the line element
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    line.setAttribute('stroke', 'var(--connector-color)');
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('fill', 'none');
+                    conn.lineEl = line;
                     svgLayer.appendChild(line);
-                    updateConnectionLine(conn); // Update position of the new line
+                    updateConnectionLine(conn);
                 });
-                console.log("Connections after redraw:", connections);
             }
             
             // --- IMPORT / EXPORT / CLEAR LOGIC ---
             exportFlowBtn.addEventListener('click', () => {
                 const dataToExport = {
                     nodes: Object.values(nodes).map(n => ({
-                        id: n.id,
-                        type: n.type,
-                        x: n.x,
-                        y: n.y,
-                        content: n.content
+                        id: n.id, type: n.type, x: n.x, y: n.y, content: n.content
                     })),
                     connections: connections.map(c => ({
-                        from: c.from,
-                        to: c.to,
-                        choice: c.choice
+                        from: c.from, to: c.to, choice: c.choice
                     })),
                     nodeIdCounter,
                     pan,
@@ -1457,43 +1204,26 @@
                     }
                 };
                 reader.readAsText(file);
-                e.target.value = ''; // Clear file input
+                e.target.value = '';
             });
 
-            /**
-             * Resets the canvas, removing all nodes and connections.
-             */
             function resetCanvas() {
+                flowCanvas.innerHTML = '<svg id="svg-layer"></svg>'; // Re-create svg layer
                 nodes = {};
                 connections = [];
                 selectedNodeId = null;
-                // Clear all elements inside flowCanvas, except svg-layer
-                Array.from(flowCanvas.children).forEach(child => {
-                    if (child.id !== 'svg-layer') {
-                        child.remove();
-                    }
-                });
-                // Clear SVG (all lines)
-                svgLayer.innerHTML = '';
-                console.log("Canvas reset.");
+                nodeIdCounter = 0;
+                pan = { x: 0, y: 0, scale: 1 };
+                updateCanvasTransform();
             }
 
-            /**
-             * Saves the current flow state to localStorage.
-             */
             function saveState() {
                 const state = {
                     nodes: Object.values(nodes).map(n => ({
-                        id: n.id,
-                        type: n.type,
-                        x: n.x,
-                        y: n.y,
-                        content: n.content
+                        id: n.id, type: n.type, x: n.x, y: n.y, content: n.content
                     })),
                     connections: connections.map(c => ({
-                        from: c.from,
-                        to: c.to,
-                        choice: c.choice
+                        from: c.from, to: c.to, choice: c.choice
                     })),
                     nodeIdCounter,
                     pan,
@@ -1503,45 +1233,31 @@
                     }
                 };
                 localStorage.setItem('zapflowBuilderState', JSON.stringify(state));
-                console.log("State saved:", state);
             }
 
-            /**
-             * Loads flow state from localStorage or provided data.
-             * @param {object|null} data - Optional data to load (for import).
-             */
             function loadState(data = null) {
                 const state = data || JSON.parse(localStorage.getItem('zapflowBuilderState'));
                 if (!state) {
-                    console.log("No saved state found.");
-                    // Set default bot settings if no state is found
                     botNameInput.value = 'ZAPFLOW BOT';
                     botProfilePicInput.value = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
                     updateBotPreview();
                     return;
                 }
-                console.log("Loading state:", state);
 
-                resetCanvas(); // Clear canvas before loading
+                resetCanvas();
                 nodeIdCounter = state.nodeIdCounter || 0;
-                pan = state.pan || {x:0, y:0, scale:1};
+                pan = state.pan || {x:0, y:0, scale:1, isPanning: false, startX: 0, startY: 0 };
                 updateCanvasTransform();
 
                 if (state.nodes) {
-                    // First create all nodes
                     state.nodes.forEach(n => createNode(n.type, n.x, n.y, n.id, n.content));
                 }
-                // Then restore connections
                 connections = state.connections || [];
-                redrawAllConnections(); // Redraw all lines
+                redrawAllConnections();
 
-                // Load bot settings
                 if (state.botSettings) {
                     botNameInput.value = state.botSettings.name || 'ZAPFLOW BOT';
                     botProfilePicInput.value = state.botSettings.profilePic || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
-                } else {
-                    botNameInput.value = 'ZAPFLOW BOT';
-                    botProfilePicInput.value = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
                 }
                 updateBotPreview();
             }
@@ -1550,12 +1266,9 @@
                 showConfirmModal('Limpar Fluxo?', 'Tem certeza que deseja limpar todo o fluxo? Esta ação não pode ser desfeita.',
                     () => {
                         resetCanvas();
-                        nodeIdCounter = 0;
-                        // No default start node created here. User must drag it.
                         saveState();
-                        showAlertModal('Fluxo Limpo', 'O canvas foi limpo. Arraste um nó de "Início" para começar.');
-                    },
-                    () => showAlertModal('Ação Cancelada', 'A limpeza do fluxo foi cancelada.')
+                        showAlertModal('Fluxo Limpo', 'O canvas foi limpo.');
+                    }
                 );
             });
 
@@ -1563,10 +1276,9 @@
             function updateBotPreview() {
                 previewBotName.textContent = botNameInput.value || 'ZAPFLOW BOT';
                 previewBotAvatar.src = botProfilePicInput.value || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
-                // Add error handling for broken image
                 previewBotAvatar.onerror = function() {
-                    this.onerror=null; // Avoid infinite loop
-                    this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot'; // Placeholder for broken image
+                    this.onerror=null;
+                    this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';
                 };
             }
 
@@ -1581,40 +1293,29 @@
             });
             
             // --- FLOW SIMULATION LOGIC ---
-            let flowVariables = {}; // Stores user variables during simulation
-            let simulationMessages = []; // Stores messages for static HTML export
+            let flowVariables = {};
 
-            /**
-             * Adds a message to the preview chat body.
-             * @param {string} text - The message text.
-             * @param {string} type - 'received' for bot messages, 'sent' for user messages.
-             * @param {string} [imageUrl] - Image URL if it's an image message.
-             */
             function addMessage(text, type, imageUrl = null) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${type}`;
                 if (imageUrl) {
                     const img = document.createElement('img');
                     img.src = imageUrl;
-                    // Add fallback for broken image
                     img.onerror = function() {
-                        this.onerror=null; // Avoid infinite loop
+                        this.onerror=null;
                         this.src='https://placehold.co/150x100/CCCCCC/000000?text=Imagem+N%C3%A3o+Encontrada';
                     };
                     messageDiv.appendChild(img);
                 }
-                messageDiv.innerHTML += `<span>${text.replace(/\n/g, '<br>')}</span>`; // Add text and line breaks
+                if(text) {
+                    const span = document.createElement('span');
+                    span.innerHTML = text.replace(/\n/g, '<br>');
+                    messageDiv.appendChild(span);
+                }
                 previewChatBody.appendChild(messageDiv);
                 scrollToBottom();
-
-                // Store for static HTML export
-                simulationMessages.push({ text: text, type: type, imageUrl: imageUrl });
             }
 
-            /**
-             * Adds a typing indicator to the preview chat.
-             * @returns {HTMLElement} The indicator element.
-             */
             function addTypingIndicator() {
                 const indicator = document.createElement('div');
                 indicator.className = 'typing-indicator';
@@ -1624,28 +1325,14 @@
                 return indicator;
             }
 
-            /**
-             * Removes a typing indicator from the chat.
-             * @param {HTMLElement} indicatorEl - The indicator element to be removed.
-             */
             function removeTypingIndicator(indicatorEl) {
-                if (indicatorEl) {
-                    indicatorEl.remove();
-                }
+                if (indicatorEl) indicatorEl.remove();
             }
 
-            /**
-             * Auto-scrolls the chat to the bottom.
-             */
             function scrollToBottom() {
                 previewChatBody.scrollTop = previewChatBody.scrollHeight;
             }
 
-            /**
-             * Waits for user choice via buttons.
-             * @param {Array<string>} choices - Array of option texts.
-             * @returns {Promise<number>} A promise that resolves with the index of the selected choice.
-             */
             function waitForUserChoice(choices) {
                 return new Promise(resolve => {
                     const choiceContainer = document.createElement('div');
@@ -1653,15 +1340,14 @@
                     choices.forEach((choiceText, index) => {
                         const button = document.createElement('button');
                         button.className = 'choice-button';
-                        // Replace flowVariables in choiceText
                         let processedChoiceText = choiceText;
                         for (const key in flowVariables) {
                             processedChoiceText = processedChoiceText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
                         }
                         button.textContent = processedChoiceText;
                         button.onclick = () => {
-                            choiceContainer.remove(); // Remove buttons after choice
-                            resolve(index); // Resolve with choice index
+                            choiceContainer.remove();
+                            resolve(index);
                         };
                         choiceContainer.appendChild(button);
                     });
@@ -1670,19 +1356,13 @@
                 });
             }
 
-            /**
-             * Waits for user text input.
-             * @param {string} promptText - The question text for the user.
-             * @returns {Promise<string>} A promise that resolves with the text entered by the user.
-             */
             function waitForUserInput(promptText) {
                 return new Promise(resolve => {
-                    // Replace flowVariables in promptText
                     let processedPromptText = promptText;
                     for (const key in flowVariables) {
                         processedPromptText = processedPromptText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
                     }
-                    addMessage(processedPromptText, "received"); // Show bot's question
+                    addMessage(processedPromptText, "received");
 
                     const inputContainer = document.createElement('div');
                     inputContainer.className = 'user-input-container';
@@ -1690,275 +1370,40 @@
                     inputField.type = 'text';
                     inputField.placeholder = 'Digite sua resposta...';
                     const sendButton = document.createElement('button');
-                    sendButton.textContent = 'Enviar';
+                    sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
 
-                    sendButton.onclick = () => {
+                    const submitResponse = () => {
                         const userText = inputField.value.trim();
                         if (userText) {
-                            inputContainer.remove(); // Remove input field and button
+                            inputContainer.remove();
                             resolve(userText);
                         }
                     };
-                    // Allow sending with Enter
+
+                    sendButton.onclick = submitResponse;
                     inputField.addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') {
-                            sendButton.click();
-                        }
+                        if (e.key === 'Enter') submitResponse();
                     });
 
                     inputContainer.appendChild(inputField);
                     inputContainer.appendChild(sendButton);
                     previewChatBody.appendChild(inputContainer);
                     scrollToBottom();
-                    inputField.focus(); // Focus on input field
+                    inputField.focus();
                 });
             }
 
-
-            /**
-             * Simulates chat flow in the preview.
-             * @param {string} currentNodeId - The ID of the current node to be processed.
-             */
             async function simulateFlow(currentNodeId) {
                 const currentNode = nodes[currentNodeId];
                 if (!currentNode) {
                     addMessage("Fluxo terminado ou nó inválido alcançado.", "received");
                     return;
                 }
-                console.log(`Simulating node: ${currentNodeId}, Type: ${currentNode.type}`);
 
-                try {
-                    // Replace variables in node content before processing
-                    let processedContent = currentNode.content.map(c => {
-                        let text = c;
-                        for (const key in flowVariables) {
-                            text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
-                        }
-                        return text;
-                    });
-
-                    switch (currentNode.type) {
-                        case 'start':
-                            const startConnection = connections.find(c => c.from === currentNode.id);
-                            console.log("Start node connections found:", connections.filter(c => c.from === currentNode.id));
-                            if (startConnection) {
-                                console.log(`Found start connection to: ${startConnection.to}`);
-                                await simulateFlow(startConnection.to); // Continue to next node
-                            } else {
-                                console.log("No connection found for start node. Flow terminated.", connections);
-                                addMessage("Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", "received");
-                            }
-                            break;
-
-                        case 'end': // New 'end' node behavior
-                            addMessage("Fluxo finalizado.", "received");
-                            console.log("End node reached. Flow terminated.");
-                            return; // Stop simulation here
-
-                        case 'message':
-                            addMessage(processedContent[0], "received");
-                            await new Promise(r => setTimeout(r, 500)); // Small delay for "reading"
-                            // Find next connection and continue
-                            const msgConnection = connections.find(c => c.from === currentNode.id);
-                            console.log(`Message node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
-                            if (msgConnection) {
-                                console.log(`Found message connection to: ${msgConnection.to}`);
-                                await simulateFlow(msgConnection.to);
-                            }
-                            else {
-                                console.log("No connection found for message node. Flow terminated.");
-                                addMessage("Nó 'Mensagem' não conectado. Fluxo terminou.", "received");
-                            }
-                            break;
-
-                        case 'image':
-                            addMessage("Enviando imagem...", "received", processedContent[0]);
-                            await new Promise(r => setTimeout(r, 1000)); // Small delay for "loading"
-                            const imgConnection = connections.find(c => c.from === currentNode.id);
-                            console.log(`Image node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
-                            if (imgConnection) {
-                                console.log(`Found image connection to: ${imgConnection.to}`);
-                                await simulateFlow(imgConnection.to);
-                            }
-                            else {
-                                console.log("No connection found for image node. Flow terminated.");
-                                addMessage("Nó 'Imagem' não conectado. Fluxo terminou.", "received");
-                            }
-                            break;
-
-                        case 'question':
-                            const questionText = processedContent[0];
-                            const choiceSelected = await waitForUserChoice(['Sim', 'Não']);
-                            addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent'); // User's answer
-
-                            // Find next connection based on choice
-                            const questionChoice = (choiceSelected === 0) ? 'yes' : 'no';
-                            const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === questionChoice);
-                            console.log(`Question node (${currentNode.id}) connections for choice '${questionChoice}':`, connections.filter(c => c.from === currentNode.id && c.choice === questionChoice));
-                            if (questionConnection) {
-                                console.log(`Found question connection to: ${questionConnection.to}`);
-                                await simulateFlow(questionConnection.to);
-                            }
-                            else {
-                                console.log(`No connection found for question node choice '${questionChoice}'. Flow terminated.`);
-                                showAlertModal('Aviso', `Nenhuma conexão definida para a opção "${questionChoice === 'yes' ? 'Sim' : 'Não'}". Fluxo terminou.`);
-                            }
-                            break;
-
-                        case 'multipleChoice':
-                            const mcQuestionText = processedContent[0];
-                            const mcOptions = processedContent.slice(1);
-                            
-                            addMessage(mcQuestionText, "received");
-                            const mcChoiceIndex = await waitForUserChoice(mcOptions);
-                            addMessage(mcOptions[mcChoiceIndex], 'sent'); // User's answer
-
-                            // Find next connection based on choice index
-                            const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex);
-                            console.log(`Multiple Choice node (${currentNode.id}) connections for choice index '${mcChoiceIndex}':`, connections.filter(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex));
-                            if (mcConnection) {
-                                console.log(`Found multiple choice connection to: ${mcConnection.to}`);
-                                await simulateFlow(mcConnection.to);
-                            }
-                            else {
-                                console.log(`No connection found for multiple choice node choice index '${mcChoiceIndex}'. Flow terminated.`);
-                                showAlertModal('Aviso', `Nenhuma conexão definida para a opção "${mcOptions[mcChoiceIndex]}". Fluxo terminou.`);
-                            }
-                            break;
-
-                        case 'userInput':
-                            const inputPrompt = processedContent[0];
-                            const variableName = processedContent[1] || 'user_input'; // Default variable name
-                            const userInput = await waitForUserInput(inputPrompt);
-                            addMessage(userInput, 'sent'); // Show user input
-                            flowVariables[variableName] = userInput; // Store input
-                            console.log(`User input for variable '${variableName}': ${userInput}`);
-                            
-                            const userInputConnection = connections.find(c => c.from === currentNode.id);
-                            console.log(`User Input node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
-                            if (userInputConnection) {
-                                console.log(`Found user input connection to: ${userInputConnection.to}`);
-                                await simulateFlow(userInputConnection.to);
-                            }
-                            else {
-                                console.log("No connection found for user input node. Flow terminated.");
-                                addMessage("Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", "received");
-                            }
-                            break;
-
-                        case 'delay':
-                            const delayMs = parseInt(processedContent[0] || '1500', 10);
-                            const indicator = addTypingIndicator();
-                            console.log(`Delaying for ${delayMs}ms...`);
-                            await new Promise(r => setTimeout(r, delayMs));
-                            removeTypingIndicator(indicator);
-                            
-                            const delayConnection = connections.find(c => c.from === currentNode.id);
-                            console.log(`Delay node (${currentNode.id}) connections found:`, connections.filter(c => c.from === currentNode.id));
-                            if (delayConnection) {
-                                console.log(`Found delay connection to: ${delayConnection.to}`);
-                                await simulateFlow(delayConnection.to);
-                            }
-                            else {
-                                console.log("No connection found for delay node. Flow terminated.");
-                                addMessage("Nó 'Atraso' não conectado. Fluxo terminou.", "received");
-                            }
-                            break;
-
-                        case 'cta':
-                            const ctaText = processedContent[0] || 'Visitar Link';
-                            const ctaUrl = processedContent[1] || '#';
-                            const ctaContainer = document.createElement('div');
-                            ctaContainer.className = 'cta-button-container';
-                            const ctaButton = document.createElement('a');
-                            ctaButton.className = 'cta-button';
-                            ctaButton.href = ctaUrl;
-                            ctaButton.textContent = ctaText;
-                            ctaButton.target = '_blank'; // Open in new tab
-                            ctaContainer.appendChild(ctaButton);
-                            previewChatBody.appendChild(ctaContainer);
-                            scrollToBottom();
-                            addMessage("Fluxo concluído! Clique no botão final.", "received");
-                            console.log("CTA node reached. Flow finished.");
-                            break;
-
-                        default:
-                            addMessage(`Tipo de nó desconhecido: ${currentNode.type}. Fluxo terminado.`, "received");
-                            console.log(`Unknown node type: ${currentNode.type}. Flow terminated.`);
-                            break;
-                    }
-                } catch (error) {
-                    console.error("Erro durante a simulação do fluxo:", error);
-                    showAlertModal('Erro de Simulação', 'Ocorreu um erro durante a simulação do fluxo. Verifique suas conexões e conteúdos.');
-                }
-            }
-
-            // Start flow simulation
-            runFlowBtn.addEventListener('click', async () => {
-                previewChatBody.innerHTML = ''; // Clear preview chat
-                simulationMessages = []; // Clear messages for static HTML export
-                flowVariables = {}; // Reset flow variables
-                
-                // Find start node
-                const startNode = Object.values(nodes).find(node => node.type === 'start');
-                if (!startNode) {
-                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo. Por favor, arraste um do painel lateral.');
-                    return;
-                }
-                
-                addMessage("Simulação do fluxo iniciada.", "received");
-                await new Promise(r => setTimeout(r, 1000)); // Small delay before starting actual flow
-                console.log("Starting flow. Initial connections:", connections);
-                simulateFlow(startNode.id); // Start simulation from start node
-            });
-
-            // --- NEW: GENERATE AND DOWNLOAD CHAT HTML ---
-            downloadHtmlBtn.addEventListener('click', async () => {
-                // First, run a simulation to capture messages for the static HTML
-                previewChatBody.innerHTML = ''; // Clear preview chat
-                simulationMessages = []; // Reset messages for export
-                flowVariables = {}; // Reset variables for export simulation
-
-                const startNode = Object.values(nodes).find(node => node.type === 'start');
-                if (!startNode) {
-                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo para gerar HTML.');
-                    return;
-                }
-
-                // Run a headless simulation to collect messages
-                await simulateFlowForHtmlExport(startNode.id);
-
-                const chatHtml = generateChatHtmlContent(simulationMessages, botNameInput.value, botProfilePicInput.value);
-                const blob = new Blob([chatHtml], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'zapflow_chat_preview.html';
-                a.click();
-                URL.revokeObjectURL(url);
-                showAlertModal('Sucesso!', 'Pré-visualização do chat exportada como "zapflow_chat_preview.html".');
-            });
-
-            /**
-             * Simulates the flow to collect messages for HTML export.
-             * This version does not interact with the DOM, only collects data.
-             * It makes assumptions for user input and multiple choices to create a linear path.
-             * @param {string} currentNodeId - The ID of the current node to be processed.
-             * @param {object} currentFlowVariables - Current state of flow variables.
-             * @returns {Promise<void>}
-             */
-            async function simulateFlowForHtmlExport(currentNodeId, currentFlowVariables = {}, messages = []) {
-                const currentNode = nodes[currentNodeId];
-                if (!currentNode) {
-                    messages.push({ text: "Fluxo terminado ou nó inválido alcançado.", type: "received" });
-                    return;
-                }
-
-                // Replace variables in node content before processing
                 let processedContent = currentNode.content.map(c => {
-                    let text = c;
-                    for (const key in currentFlowVariables) {
-                        text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), currentFlowVariables[key]);
+                    let text = c || '';
+                    for (const key in flowVariables) {
+                        text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), flowVariables[key]);
                     }
                     return text;
                 });
@@ -1966,169 +1411,122 @@
                 switch (currentNode.type) {
                     case 'start':
                         const startConnection = connections.find(c => c.from === currentNode.id);
-                        if (startConnection) {
-                            await simulateFlowForHtmlExport(startConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: "Nó 'Início' não conectado a nenhum outro nó. Fluxo terminou.", type: "received" });
-                        }
+                        if (startConnection) await simulateFlow(startConnection.to);
+                        else addMessage("Nó 'Início' não conectado.", "received");
                         break;
-
                     case 'end':
-                        messages.push({ text: "Fluxo finalizado.", type: "received" });
-                        return;
-
+                        addMessage("Fluxo finalizado.", "received");
+                        break;
                     case 'message':
-                        messages.push({ text: processedContent[0], type: "received" });
+                        addMessage(processedContent[0], "received");
+                        await new Promise(r => setTimeout(r, 500));
                         const msgConnection = connections.find(c => c.from === currentNode.id);
-                        if (msgConnection) {
-                            await simulateFlowForHtmlExport(msgConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: "Nó 'Mensagem' não conectado. Fluxo terminou.", type: "received" });
-                        }
+                        if (msgConnection) await simulateFlow(msgConnection.to);
                         break;
-
                     case 'image':
-                        messages.push({ text: "Enviando imagem...", type: "received", imageUrl: processedContent[0] });
+                        addMessage(null, "received", processedContent[0]);
+                        await new Promise(r => setTimeout(r, 1000));
                         const imgConnection = connections.find(c => c.from === currentNode.id);
-                        if (imgConnection) {
-                            await simulateFlowForHtmlExport(imgConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: "Nó 'Imagem' não conectado. Fluxo terminou.", type: "received" });
-                        }
+                        if (imgConnection) await simulateFlow(imgConnection.to);
                         break;
-
                     case 'question':
-                        const questionText = processedContent[0];
-                        messages.push({ text: questionText, type: "received" });
-                        // For static export, assume "Sim" (choice 0)
-                        const assumedQuestionChoice = 'yes';
-                        messages.push({ text: 'Sim', type: 'sent' });
-
-                        const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === assumedQuestionChoice);
-                        if (questionConnection) {
-                            await simulateFlowForHtmlExport(questionConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: `Nenhuma conexão definida para a opção "Sim". Fluxo terminou.`, type: "received" });
-                        }
+                        addMessage(processedContent[0], "received");
+                        const choiceSelected = await waitForUserChoice(['Sim', 'Não']);
+                        addMessage(choiceSelected === 0 ? 'Sim' : 'Não', 'sent');
+                        const questionChoice = (choiceSelected === 0) ? 'yes' : 'no';
+                        const questionConnection = connections.find(c => c.from === currentNode.id && c.choice === questionChoice);
+                        if (questionConnection) await simulateFlow(questionConnection.to);
+                        else showAlertModal('Aviso', `Nenhuma conexão definida para a opção "${questionChoice === 'yes' ? 'Sim' : 'Não'}".`);
                         break;
-
                     case 'multipleChoice':
-                        const mcQuestionText = processedContent[0];
+                        addMessage(processedContent[0], "received");
                         const mcOptions = processedContent.slice(1);
-                        messages.push({ text: mcQuestionText, type: "received" });
-                        // For static export, assume the first option (choice 0)
-                        const assumedMcChoiceIndex = 0;
-                        if (mcOptions[assumedMcChoiceIndex]) {
-                            messages.push({ text: mcOptions[assumedMcChoiceIndex], type: 'sent' });
-                        } else {
-                            messages.push({ text: 'Nenhuma opção disponível.', type: 'sent' });
-                        }
-
-                        const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === assumedMcChoiceIndex);
-                        if (mcConnection) {
-                            await simulateFlowForHtmlExport(mcConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: `Nenhuma conexão definida para a primeira opção. Fluxo terminou.`, type: "received" });
-                        }
+                        const mcChoiceIndex = await waitForUserChoice(mcOptions);
+                        addMessage(mcOptions[mcChoiceIndex], 'sent');
+                        const mcConnection = connections.find(c => c.from === currentNode.id && parseInt(c.choice) === mcChoiceIndex);
+                        if (mcConnection) await simulateFlow(mcConnection.to);
+                        else showAlertModal('Aviso', `Nenhuma conexão definida para a opção "${mcOptions[mcChoiceIndex]}".`);
                         break;
-
                     case 'userInput':
                         const inputPrompt = processedContent[0];
-                        const variableName = processedContent[1] || 'user_input';
-                        messages.push({ text: inputPrompt, type: "received" });
-                        const assumedUserInput = `[Resposta do Usuário para ${variableName}]`; // Placeholder for static export
-                        messages.push({ text: assumedUserInput, type: 'sent' });
-                        currentFlowVariables[variableName] = assumedUserInput; // Update variables for subsequent nodes
-
+                        const variableName = currentNode.content[1] || 'user_input'; // Use original content for var name
+                        const userInput = await waitForUserInput(inputPrompt);
+                        addMessage(userInput, 'sent');
+                        flowVariables[variableName] = userInput;
                         const userInputConnection = connections.find(c => c.from === currentNode.id);
-                        if (userInputConnection) {
-                            await simulateFlowForHtmlExport(userInputConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: "Nó 'Entrada do Utilizador' não conectado. Fluxo terminou.", type: "received" });
-                        }
+                        if (userInputConnection) await simulateFlow(userInputConnection.to);
                         break;
-
                     case 'delay':
-                        // Delays are skipped for static HTML export, but we can add a message
-                        messages.push({ text: `[Pausa de ${processedContent[0] || '1500'}ms]`, type: "received" });
+                        const delayMs = parseInt(processedContent[0] || '1500', 10);
+                        const indicator = addTypingIndicator();
+                        await new Promise(r => setTimeout(r, delayMs));
+                        removeTypingIndicator(indicator);
                         const delayConnection = connections.find(c => c.from === currentNode.id);
-                        if (delayConnection) {
-                            await simulateFlowForHtmlExport(delayConnection.to, currentFlowVariables, messages);
-                        } else {
-                            messages.push({ text: "Nó 'Atraso' não conectado. Fluxo terminou.", type: "received" });
-                        }
+                        if (delayConnection) await simulateFlow(delayConnection.to);
                         break;
-
                     case 'cta':
                         const ctaText = processedContent[0] || 'Visitar Link';
                         const ctaUrl = processedContent[1] || '#';
-                        messages.push({ text: "Fluxo concluído! Clique no botão final.", type: "received" });
-                        messages.push({ cta: { text: ctaText, url: ctaUrl }, type: "cta" }); // Special type for CTA
+                        const ctaContainer = document.createElement('div');
+                        ctaContainer.className = 'cta-button-container';
+                        ctaContainer.innerHTML = `<a class="cta-button" href="${ctaUrl}" target="_blank">${ctaText}</a>`;
+                        previewChatBody.appendChild(ctaContainer);
+                        scrollToBottom();
+                        addMessage("Fluxo concluído! Clique no botão final.", "received");
                         break;
-
                     default:
-                        messages.push({ text: `Tipo de nó desconhecido: ${currentNode.type}. Fluxo terminado.`, type: "received" });
+                        addMessage(`Tipo de nó desconhecido: ${currentNode.type}.`, "received");
                         break;
                 }
-                // The `messages` array is modified by reference, so no return needed.
             }
 
-            /**
-             * Generates the full HTML content for the chat preview.
-             * @param {Array<object>} messages - Array of message objects (from simulateFlowForHtmlExport).
-             * @param {string} botName - The bot's name.
-             * @param {string} botAvatar - The bot's avatar URL.
-             * @returns {string} The complete HTML string.
-             */
-            function generateChatHtmlContent(messages, botName, botAvatar) {
-                const chatMessagesHtml = messages.map(msg => {
-                    if (msg.type === 'cta') {
-                        return `
-                            <div class="cta-button-container">
-                                <a class="cta-button" href="${msg.cta.url}" target="_blank">${msg.cta.text}</a>
-                            </div>
-                        `;
-                    }
-                    const imgHtml = msg.imageUrl ? `<img src="${msg.imageUrl}" onerror="this.onerror=null;this.src='https://placehold.co/150x100/CCCCCC/000000?text=Imagem+N%C3%A3o+Encontrada';">` : '';
-                    return `
-                        <div class="message ${msg.type}">
-                            ${imgHtml}<span>${msg.text.replace(/\n/g, '<br>')}</span>
-                        </div>
-                    `;
-                }).join('');
+            runFlowBtn.addEventListener('click', () => {
+                previewChatBody.innerHTML = '';
+                flowVariables = {};
+                const startNode = Object.values(nodes).find(node => node.type === 'start');
+                if (!startNode) {
+                    showAlertModal('Erro', 'Nenhum nó de "Início" encontrado no fluxo.');
+                    return;
+                }
+                simulateFlow(startNode.id);
+            });
 
-                // Extract the relevant CSS for the chat preview
+            // --- MODIFIED: GENERATE AND DOWNLOAD EXECUTABLE HTML ---
+            function generateAndDownloadExecutableHtml() {
+                const startNode = Object.values(nodes).find(node => node.type === 'start');
+                if (!startNode) {
+                    showAlertModal('Erro', 'É necessário um nó de "Início" para criar um funil executável.');
+                    return;
+                }
+                
+                // 1. Get Flow Data
+                const flowState = {
+                    nodes: Object.values(nodes).map(n => ({ id: n.id, type: n.type, content: n.content })),
+                    connections: connections.map(c => ({ from: c.from, to: c.to, choice: c.choice })),
+                    botSettings: {
+                        name: botNameInput.value,
+                        profilePic: botProfilePicInput.value
+                    }
+                };
+
+                // 2. Get necessary CSS
                 const chatCss = `
-                    body {
-                        font-family: 'Roboto', sans-serif;
-                        background-color: #f0f0f0; /* Lighter background for standalone chat */
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                        margin: 0;
-                    }
-                    .mobile-preview {
-                        width: 100%; max-width: 380px; height: 90vh; background-color: #111;
-                        border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-                        display: flex; flex-direction: column; overflow: hidden;
-                    }
-                    .chat-header {
-                        background-color: #075E54; color: white; padding: 10px 15px; display: flex;
-                        align-items: center; gap: 15px; flex-shrink: 0;
-                    }
+                    body { font-family: 'Roboto', sans-serif; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+                    .mobile-preview { width: 100%; max-width: 400px; height: 90vh; max-height: 800px; background-color: #111; border-radius: 40px; border: 10px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden; }
+                    .chat-header { background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0; }
                     .chat-header img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
                     .chat-header .name { font-weight: bold; }
                     .chat-header .status { font-size: 0.8em; color: #d1d1d1; }
-                    .chat-body {
-                        flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column;
-                        gap: 12px; background-color: #e5ddd5;
-                        background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-                    }
+                    .chat-body { flex-grow: 1; padding: 15px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); }
                     .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
                     .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
                     .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
                     .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+                    .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
+                    .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
+                    .typing-indicator span:nth-child(2) { animation-delay: 0.1s; }
+                    .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
+                    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
                     .choice-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 5px 10px; align-self: flex-end; }
                     .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: background-color 0.2s, color 0.2s; }
                     .choice-button:hover { background-color: #075E54; color: white; }
@@ -2140,47 +1538,92 @@
                     .user-input-container button { padding: 8px 15px; border-radius: 20px; border: none; background-color: #075E54; color: white; cursor: pointer; }
                 `;
 
-                return `
+                // 3. Get necessary JS functions as strings
+                const runnerJs = `
+                    const flowData = ${JSON.stringify(flowState, null, 2)};
+                    const nodes = {};
+                    flowData.nodes.forEach(n => { nodes[n.id] = n; });
+                    const connections = flowData.connections;
+                    let flowVariables = {};
+                    const previewChatBody = document.getElementById('preview-chat-body');
+
+                    // --- Paste simulation functions here ---
+                    ${addMessage.toString()}
+                    ${addTypingIndicator.toString()}
+                    ${removeTypingIndicator.toString()}
+                    ${scrollToBottom.toString()}
+                    ${waitForUserChoice.toString()}
+                    ${waitForUserInput.toString()}
+                    
+                    const simulateFlow = ${simulateFlow.toString()};
+
+                    // --- Startup script ---
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const startNode = Object.values(nodes).find(node => node.type === 'start');
+                        if (startNode) {
+                            simulateFlow(startNode.id);
+                        } else {
+                            addMessage('Erro: Nó de início não encontrado.', 'received');
+                        }
+                    });
+                `;
+
+                // 4. Assemble the final HTML
+                const finalHtml = `
                     <!DOCTYPE html>
                     <html lang="pt-BR">
                     <head>
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>ZAPFLOW Chat Preview</title>
+                        <title>${flowState.botSettings.name || 'ZAPFLOW Chat'}</title>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                        <style>
-                            ${chatCss}
-                        </style>
+                        <link rel="preconnect" href="https://fonts.googleapis.com">
+                        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+                        <style>${chatCss}</style>
                     </head>
                     <body>
                         <div class="mobile-preview">
                             <div class="chat-header">
-                                <img src="${botAvatar}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
+                                <img src="${flowState.botSettings.profilePic || 'https://placehold.co/45x45/CCCCCC/000000?text=Bot'}" alt="Atendente" onerror="this.onerror=null;this.src='https://placehold.co/45x45/CCCCCC/000000?text=Bot';">
                                 <div class="contact-info">
-                                    <div class="name">${botName}</div>
+                                    <div class="name">${flowState.botSettings.name || 'ZAPFLOW BOT'}</div>
                                     <div class="status">online</div>
                                 </div>
                             </div>
-                            <div class="chat-body">
-                                ${chatMessagesHtml}
-                            </div>
+                            <div class="chat-body" id="preview-chat-body"></div>
                         </div>
+                        <script>
+                            ${runnerJs}
+                        <\/script>
                     </body>
                     </html>
                 `;
+
+                // 5. Trigger download
+                const blob = new Blob([finalHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'funil_interativo.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showAlertModal('Sucesso!', 'Seu funil interativo foi baixado como "funil_interativo.html".');
             }
+
+            downloadHtmlBtn.addEventListener('click', generateAndDownloadExecutableHtml);
 
 
             // --- INITIALIZATION ---
             function init() {
-                loadState(); // Try to load saved state
-                // If no nodes, do not create a default start node. User must drag it.
+                loadState();
                 if (Object.keys(nodes).length === 0) {
-                   console.log("No nodes loaded. Canvas is empty.");
+                   console.log("Canvas está vazio. Arraste um bloco para começar.");
                 }
-                console.log("Flow builder initialized.");
             }
-            init(); // Call initialization function
+            init();
         }
     });
     </script>

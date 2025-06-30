@@ -23,7 +23,15 @@
             --accent-yellow-glow: rgba(255, 210, 63, 0.5); --shadow-color: rgba(0, 0, 0, 0.5);
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-primary); }
-        .flow-canvas.drag-over { background-color: rgba(255, 210, 63, 0.05); }
+        
+        #flow-canvas {
+            background-color: var(--bg-main);
+            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            transition: background-color 0.2s;
+        }
+        #flow-canvas.drag-over { background-color: rgba(255, 210, 63, 0.05); }
+        #flow-canvas:active { cursor: grabbing; }
         
         .neon-yellow-text { color: var(--accent-yellow); text-shadow: 0 0 5px var(--accent-yellow-glow), 0 0 10px var(--accent-yellow-glow); }
         .neon-yellow-bar { background-color: var(--accent-yellow); box-shadow: 0 0 8px var(--accent-yellow-glow); }
@@ -33,7 +41,6 @@
             background-color: var(--bg-secondary); border: 1px solid var(--border-color);
             border-radius: 8px; box-shadow: 0 10px 20px var(--shadow-color);
         }
-        .canvas-component:active { cursor: grabbing; z-index: 20; }
         .component-header {
             background-color: var(--bg-tertiary); border-top-left-radius: 7px;
             border-top-right-radius: 7px; border-bottom: 1px solid var(--border-color);
@@ -63,7 +70,6 @@
             border: 1px solid var(--border-color); width: 90%; max-width: 500px;
         }
 
-        /* Estilos da Prévia */
         #preview-chat-container {
             background-color: #e5ddd5;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
@@ -74,53 +80,50 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-secondary shadow-md px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
+    <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-bolt text-2xl neon-yellow-text"></i>
-            <h1 class="text-xl font-bold text-primary">ZaapFlow</h1>
+            <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
         </div>
-        <div class="text-lg font-semibold">Construtor de Funil</div>
+        <div class="hidden md:block text-lg font-semibold">Construtor de Funil</div>
         <div></div>
     </header>
 
     <div class="flex-grow grid grid-cols-12 overflow-hidden">
-        <aside class="col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
+        <aside class="col-span-12 md:col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
             <div class="mb-6">
                 <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
                 <div class="space-y-2">
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="received-message">
-                        <i class="fas fa-comment-dots w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Recebida</span>
-                    </div>
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="sent-message">
-                        <i class="fas fa-paper-plane w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Enviada</span>
-                    </div>
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="image-message">
-                        <i class="fas fa-image w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Imagem</span>
-                    </div>
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="received-message"><i class="fas fa-comment-dots w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Recebida</span></div>
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Mensagem Enviada</span></div>
+                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="image-message"><i class="fas fa-image w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Imagem</span></div>
                 </div>
             </div>
             <div>
                 <h3 class="font-semibold text-text-secondary mb-3">LÓGICA</h3>
                 <div class="space-y-2">
-                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="ask-question">
-                        <i class="fas fa-question-circle w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Pergunta com Botões</span>
-                    </div>
-                    <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="delay">
-                        <i class="fas fa-clock w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Esperar (Delay)</span>
-                    </div>
+                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="ask-question"><i class="fas fa-question-circle w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Pergunta com Botões</span></div>
+                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="audio-summary"><i class="fas fa-microphone-lines w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Resumo de Áudio</span></div>
+                     <div class="draggable flex items-center p-3 rounded-md bg-tertiary cursor-move" draggable="true" data-component-type="delay"><i class="fas fa-clock w-8 text-center neon-yellow-text"></i><span class="ml-2 text-sm font-medium">Esperar (Delay)</span></div>
                 </div>
             </div>
         </aside>
 
-        <main class="col-span-5 relative border-r border-border-color">
-            <div id="flow-canvas" class="w-full h-full"></div>
+        <main class="col-span-12 md:col-span-9 lg:col-span-5 relative border-r border-border-color overflow-hidden">
+            <div id="flow-canvas" class="w-full h-full">
+                <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;"></div>
+            </div>
+            <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
+                <button id="zoom-in-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-plus"></i></button>
+                <button id="zoom-out-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-minus"></i></button>
+                <button id="reset-view-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-expand"></i></button>
+            </div>
         </main>
 
-        <aside class="col-span-4 bg-secondary p-4 flex flex-col">
+        <aside class="hidden lg:flex col-span-4 bg-secondary p-4 flex-col">
             <h2 class="text-lg font-bold mb-4 text-primary border-b border-border-color pb-2">Prévia ao Vivo</h2>
             <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
-                 <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col">
-                 </div>
+                 <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
             </div>
         </aside>
     </div>
@@ -139,19 +142,74 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const flowCanvas = document.getElementById('flow-canvas');
+        const transformer = document.getElementById('flow-transformer');
         const modal = document.getElementById('edit-modal');
+        
         let connections = [];
         let currentDrawingLine = null;
         let startElementForLine = null;
         let elementToEdit = null;
+
+        let panX = 0, panY = 0, zoom = 1;
+        let isPanning = false;
+        let panStartX, panStartY;
 
         const componentInfoMap = {
             'received-message': { name: 'Mensagem Recebida', icon: 'fa-comment-dots', text: 'Olá! Escreva sua mensagem aqui.' },
             'sent-message': { name: 'Mensagem Enviada', icon: 'fa-paper-plane', text: 'Esta é a minha resposta.' },
             'ask-question': { name: 'Pergunta com Botões', icon: 'fa-question-circle', text: 'Qual é a sua pergunta?', buttons: 'Sim;Não' },
             'delay': { name: 'Esperar (Delay)', icon: 'fa-clock', delay: 2 },
-            'image-message': { name: 'Imagem', icon: 'fa-image', url: 'https://placehold.co/600x400/2A2A2A/EAEAEA?text=Imagem' }
+            'image-message': { name: 'Imagem', icon: 'fa-image', url: 'https://placehold.co/600x400/2A2A2A/EAEAEA?text=Imagem' },
+            'audio-summary': { name: 'Resumo de Áudio', icon: 'fa-microphone-lines', text: 'Resumo do áudio aparecerá aqui.' }
         };
+
+        const applyTransform = () => {
+            transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            connections.forEach(c => c.line.position());
+        };
+
+        flowCanvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomSpeed = 0.1;
+            const oldZoom = zoom;
+            zoom -= e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+            zoom = Math.max(0.2, Math.min(2, zoom));
+            
+            const rect = flowCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            panX = mouseX - (mouseX - panX) * (zoom / oldZoom);
+            panY = mouseY - (mouseY - panY) * (zoom / oldZoom);
+
+            applyTransform();
+        });
+
+        flowCanvas.addEventListener('mousedown', e => {
+            if (e.button === 1 || (e.button === 0 && e.target === flowCanvas)) { 
+                isPanning = true;
+                panStartX = e.clientX - panX;
+                panStartY = e.clientY - panY;
+                flowCanvas.style.cursor = 'grabbing';
+            }
+        });
+        
+        window.addEventListener('mousemove', e => {
+            if (isPanning) {
+                panX = e.clientX - panStartX;
+                panY = e.clientY - panStartY;
+                applyTransform();
+            }
+        });
+
+        window.addEventListener('mouseup', e => {
+            isPanning = false;
+            flowCanvas.style.cursor = 'default';
+        });
+
+        document.getElementById('zoom-in-btn').onclick = () => { zoom = Math.min(2, zoom + 0.1); applyTransform(); };
+        document.getElementById('zoom-out-btn').onclick = () => { zoom = Math.max(0.2, zoom - 0.1); applyTransform(); };
+        document.getElementById('reset-view-btn').onclick = () => { panX = 0; panY = 0; zoom = 1; applyTransform(); };
 
         document.querySelectorAll('.draggable').forEach(draggable => {
             draggable.addEventListener('dragstart', e => {
@@ -165,7 +223,10 @@
             e.preventDefault();
             flowCanvas.classList.remove('drag-over');
             if (e.dataTransfer.getData('isNew') === 'true') {
-                createFlowComponent(e.dataTransfer.getData('text/plain'), e.clientX, e.clientY);
+                const rect = flowCanvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left - panX) / zoom;
+                const y = (e.clientY - rect.top - panY) / zoom;
+                createFlowComponent(e.dataTransfer.getData('text/plain'), x, y);
             }
         });
 
@@ -174,9 +235,8 @@
             const wrapper = document.createElement('div');
             wrapper.id = id;
             wrapper.className = 'canvas-component';
-            const rect = flowCanvas.getBoundingClientRect();
-            wrapper.style.left = `${x - rect.left - 140}px`;
-            wrapper.style.top = `${y - rect.top - 40}px`;
+            wrapper.style.left = `${x}px`;
+            wrapper.style.top = `${y}px`;
             wrapper.dataset.componentType = type;
 
             const info = componentInfoMap[type];
@@ -186,6 +246,7 @@
 
             let displayText = info.text || `Aguardar por ${info.delay} segundos`;
             if (type === 'image-message') displayText = "Componente de Imagem";
+            if (type === 'audio-summary') displayText = "Aguardando áudio para resumir...";
 
             wrapper.innerHTML = `
                 <div class="component-header">
@@ -201,7 +262,7 @@
                 <div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${displayText}</p></div>
                 <div class="connector-point input"></div><div class="connector-point output"></div>
             `;
-            flowCanvas.appendChild(wrapper);
+            transformer.appendChild(wrapper);
             makeDraggable(wrapper);
             setupControls(wrapper);
             updatePreview();
@@ -217,7 +278,8 @@
             };
             function elementDrag(e) {
                 e.preventDefault();
-                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                pos1 = (pos3 - e.clientX) / zoom;
+                pos2 = (pos4 - e.clientY) / zoom;
                 pos3 = e.clientX; pos4 = e.clientY;
                 element.style.top = `${element.offsetTop - pos2}px`;
                 element.style.left = `${element.offsetLeft - pos1}px`;
@@ -235,6 +297,71 @@
             element.querySelector('.edit').onclick = () => openEditModal(element);
         }
 
+        flowCanvas.addEventListener('mousedown', e => {
+            if (e.target.classList.contains('output')) {
+                startElementForLine = e.target.parentElement;
+                currentDrawingLine = new LeaderLine(e.target, LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }), {
+                    color: 'rgba(255, 210, 63, 0.7)', size: 3, endPlug: 'behind'
+                });
+            }
+        });
+
+        document.addEventListener('mousemove', e => { 
+            if (currentDrawingLine) {
+                currentDrawingLine.position();
+                currentDrawingLine.setOptions({ end: LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }) });
+            }
+        });
+        
+        document.addEventListener('mouseup', e => {
+            if (currentDrawingLine) {
+                const endConnector = e.target.closest('.connector-point.input');
+                currentDrawingLine.remove();
+                currentDrawingLine = null;
+                if (endConnector && endConnector.parentElement !== startElementForLine) {
+                    const line = new LeaderLine(startElementForLine.querySelector('.output'), endConnector, {
+                        color: 'var(--accent-yellow)', size: 3, path: 'fluid',
+                        startSocketGravity: 60, endSocketGravity: 60,
+                        dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 8 },
+                        endPlug: 'behind'
+                    });
+                    connections.push({ line, start: startElementForLine, end: endConnector.parentElement });
+                }
+                startElementForLine = null;
+            }
+        });
+
+        function updateConnectionsForElement(element) { connections.forEach(conn => { if (conn.start === element || conn.end === element) conn.line.position(); }); }
+        
+        function removeConnectionsForElement(element) {
+            const remaining = [];
+            connections.forEach(conn => {
+                if (conn.start === element || conn.end === element) conn.line.remove();
+                else remaining.push(conn);
+            });
+            connections = remaining;
+        }
+
+        function updatePreview() {
+            const previewChatContainer = document.getElementById('preview-chat-container');
+            if (!previewChatContainer) return;
+
+            previewChatContainer.innerHTML = `
+                <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+                    <img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;">
+                    <div><div style="font-weight: bold;">TOP FLIX</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div>
+                </div>
+                <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>
+            `;
+            const chatBody = document.getElementById('preview-chat-body');
+            transformer.querySelectorAll('.canvas-component').forEach(comp => {
+                const previewElement = createPreviewComponent(comp);
+                if (previewElement) chatBody.appendChild(previewElement);
+            });
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Funções do modal e de criação da prévia (inalteradas)
         function openEditModal(element) {
             elementToEdit = element;
             const type = element.dataset.componentType;
@@ -242,9 +369,8 @@
             let formHTML = '';
 
             switch(type) {
-                case 'received-message':
-                case 'sent-message':
-                    formHTML = `<label for="text-input" class="block text-sm font-medium text-text-secondary mb-2">Texto da Mensagem</label>
+                case 'received-message': case 'sent-message': case 'audio-summary':
+                    formHTML = `<label for="text-input" class="block text-sm font-medium text-text-secondary mb-2">Texto</label>
                                 <textarea id="text-input" class="w-full p-2 rounded-md bg-tertiary border border-border-color" rows="4">${element.dataset.text}</textarea>`;
                     break;
                 case 'ask-question':
@@ -272,14 +398,13 @@
             let displayText = '';
 
             switch(type) {
-                case 'received-message':
-                case 'sent-message':
+                case 'received-message': case 'sent-message': case 'audio-summary':
                     elementToEdit.dataset.text = modal.querySelector('#text-input').value;
                     displayText = elementToEdit.dataset.text;
                     break;
                 case 'ask-question':
                     elementToEdit.dataset.text = modal.querySelector('#text-input').value;
-                    elementToEdit.dataset.buttons = modal.querySelector('#buttons-input').value.split('\n').join(';');
+                    elementToEdit.dataset.buttons = modal.querySelector('#buttons-input').value.split('\n').filter(b => b).join(';');
                     displayText = elementToEdit.dataset.text;
                     break;
                 case 'delay':
@@ -296,62 +421,8 @@
             elementToEdit = null;
             updatePreview();
         };
+
         modal.querySelector('#modal-cancel').onclick = () => modal.classList.add('hidden');
-
-        flowCanvas.addEventListener('mousedown', e => {
-            if (e.target.classList.contains('output')) {
-                startElementForLine = e.target.parentElement;
-                currentDrawingLine = new LeaderLine(e.target, LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }), {
-                    color: 'rgba(255, 210, 63, 0.7)', size: 3, endPlug: 'arrow1', dash: { animation: true }
-                });
-            }
-        });
-        document.addEventListener('mousemove', e => { if (currentDrawingLine) currentDrawingLine.setOptions({ end: LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }) }); });
-        document.addEventListener('mouseup', e => {
-            if (currentDrawingLine) {
-                const endConnector = e.target.closest('.connector-point.input');
-                currentDrawingLine.remove();
-                if (endConnector && endConnector.parentElement !== startElementForLine) {
-                    const line = new LeaderLine(startElementForLine.querySelector('.output'), endConnector, {
-                        color: 'var(--accent-yellow)', size: 3, path: 'fluid', startSocketGravity: 60, endSocketGravity: 60,
-                        dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 8 }
-                    });
-                    connections.push({ line, start: startElementForLine, end: endConnector.parentElement });
-                }
-                startElementForLine = null;
-            }
-        });
-
-        function updateConnectionsForElement(element) { connections.forEach(conn => { if (conn.start === element || conn.end === element) conn.line.position(); }); }
-        function removeConnectionsForElement(element) {
-            const remaining = [];
-            connections.forEach(conn => {
-                if (conn.start === element || conn.end === element) conn.line.remove();
-                else remaining.push(conn);
-            });
-            connections = remaining;
-        }
-
-        function updatePreview() {
-            const previewChatContainer = document.getElementById('preview-chat-container');
-            previewChatContainer.innerHTML = `
-                <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
-                    <img src="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;">
-                    <div>
-                        <div style="font-weight: bold;">TOP FLIX</div>
-                        <div style="font-size: 0.8em; color: #d1d1d1;">online</div>
-                    </div>
-                </div>
-                <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>
-            `;
-            const chatBody = document.getElementById('preview-chat-body');
-            const components = flowCanvas.querySelectorAll('.canvas-component');
-            components.forEach(comp => {
-                const previewElement = createPreviewComponent(comp);
-                if (previewElement) chatBody.appendChild(previewElement);
-            });
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }
 
         function createPreviewComponent(element) {
             const type = element.dataset.componentType;
@@ -359,23 +430,22 @@
             const wrapper = document.createElement('div');
             
             switch(type) {
-                case 'received-message':
-                case 'ask-question':
+                case 'received-message': case 'ask-question': case 'audio-summary':
                     wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                        ${element.dataset.text}
+                        ${type === 'audio-summary' ? `<i class="fas fa-headphones mr-2"></i><i>${element.dataset.text}</i>` : element.dataset.text}
                         <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
                     </div>`;
                     if (type === 'ask-question') {
                         const btnContainer = document.createElement('div');
-                        btnContainer.style.cssText = "display: flex; gap: 10px; justify-content: flex-end; padding: 5px 0;";
+                        btnContainer.style.cssText = "align-self: flex-start; display: flex; flex-wrap: wrap; gap: 10px; padding: 5px 0 10px 0;";
                         element.dataset.buttons.split(';').forEach(btnText => {
                             const button = document.createElement('button');
                             button.innerText = btnText;
-                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold;";
+                            button.style.cssText = "background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9em;";
                             btnContainer.appendChild(button);
                         });
-                        // This is a bit tricky, we need a parent for both message and buttons
                         const parent = document.createElement('div');
+                        parent.style.cssText = "align-self: flex-start; display: flex; flex-direction: column;";
                         parent.appendChild(wrapper.firstChild);
                         parent.appendChild(btnContainer);
                         return parent;
@@ -396,7 +466,7 @@
                     return wrapper.firstChild;
                 case 'image-message':
                     wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
-                        <img src="${element.dataset.url}" style="width: 100%; border-radius: 8px;" alt="Imagem do fluxo">
+                        <img src="${element.dataset.url}" style="width: 100%; border-radius: 8px;" alt="Imagem do fluxo" onerror="this.src='https://placehold.co/600x400/2A2A2A/EAEAEA?text=Erro!'">
                         <span style="display: block; font-size: 0.7em; color: #999; text-align: right; padding: 0 5px 2px;">${time}</span>
                     </div>`;
                     return wrapper.firstChild;

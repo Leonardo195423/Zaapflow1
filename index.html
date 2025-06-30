@@ -178,7 +178,6 @@
             height: 100%;
             pointer-events: none;
         }
-        /* NEW: Neon effect for connection lines */
         .connection-line {
             stroke: var(--primary-accent);
             stroke-width: 2;
@@ -263,6 +262,10 @@
         .flow-node[data-type="end"] .node-header { background-color: #e09f25; }
         .flow-node[data-type="question"], .flow-node[data-type="multipleChoice"] { border-color: var(--secondary-accent); }
         .flow-node[data-type="question"] .node-header, .flow-node[data-type="multipleChoice"] .node-header { background-color: #3b5998; }
+        .flow-node[data-type="video"] { border-color: #c4302b; }
+        .flow-node[data-type="video"] .node-header { background-color: #a3241f; }
+        .flow-node[data-type="audio"] { border-color: #fd9843; }
+        .flow-node[data-type="audio"] .node-header { background-color: #e67e22; }
         
         .connector {
             width: 16px; height: 16px;
@@ -325,6 +328,11 @@
         .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
         .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
         .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        .message .video-container {
+            position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;
+        }
+        .message .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .message audio { width: 100%; }
         .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
         .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
         .typing-indicator span:nth-child(2) { animation-delay: 0.1s; }
@@ -440,6 +448,8 @@
             <div class="node-template" draggable="true" data-type="start"><i class="fas fa-flag-checkered"></i> Início do Fluxo</div>
             <div class="node-template" draggable="true" data-type="message"><i class="fas fa-comment-dots"></i> Mensagem do Bot</div>
             <div class="node-template" draggable="true" data-type="image"><i class="fas fa-image"></i> Imagem</div>
+            <div class="node-template" draggable="true" data-type="video"><i class="fas fa-video"></i> Vídeo</div>
+            <div class="node-template" draggable="true" data-type="audio"><i class="fas fa-volume-up"></i> Áudio</div>
             <div class="node-template" draggable="true" data-type="question"><i class="fas fa-question-circle"></i> Pergunta (Sim/Não)</div>
             <div class="node-template" draggable="true" data-type="multipleChoice"><i class="fas fa-check-double"></i> Múltiplas Escolhas</div>
             <div class="node-template" draggable="true" data-type="userInput"><i class="fas fa-keyboard"></i> Entrada do Utilizador</div>
@@ -612,10 +622,13 @@
             window.addEventListener('mouseup', () => pan.isPanning = false);
             
             // --- DRAG AND DROP ---
-            document.querySelectorAll('.node-template').forEach(t => t.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', e.target.dataset.type)));
+            document.querySelectorAll('.node-template').forEach(t => t.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', e.target.dataset.type);
+            }));
             canvasContainer.addEventListener('dragover', e => e.preventDefault());
             canvasContainer.addEventListener('drop', e => {
                 e.preventDefault();
+                e.stopPropagation(); // Prevents potential duplicate triggers
                 const type = e.dataTransfer.getData('text/plain');
                 if (type) createNode(type, toCanvasCoords(e).x, toCanvasCoords(e).y);
             });
@@ -640,7 +653,7 @@
                     const startPos = getConnectorPosition(fromConnector), endPos = getConnectorPosition(toConnector);
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     path.setAttribute('d', getBezierPath(startPos.x, startPos.y, endPos.x, endPos.y));
-                    path.setAttribute('class', 'connection-line'); // Use class for styling
+                    path.setAttribute('class', 'connection-line');
                     svgLayer.appendChild(path);
                 });
             };
@@ -708,6 +721,8 @@
                     case 'end': headerText = 'Fim'; headerIcon = 'fa-stop-circle'; contentHtml = `<p style="text-align:center;">Ponto final</p>`; hasOutput = false; break;
                     case 'message': headerText = 'Mensagem'; headerIcon = 'fa-comment-dots'; contentHtml = `<label>Texto:</label><textarea>${content[0] || ''}</textarea>`; break;
                     case 'image': headerText = 'Imagem'; headerIcon = 'fa-image'; contentHtml = `<label>URL:</label><textarea>${content[0] || ''}</textarea>`; break;
+                    case 'video': headerText = 'Vídeo'; headerIcon = 'fa-video'; contentHtml = `<label>URL (YouTube/Vimeo):</label><textarea>${content[0] || ''}</textarea>`; break;
+                    case 'audio': headerText = 'Áudio'; headerIcon = 'fa-volume-up'; contentHtml = `<label>URL (MP3, etc.):</label><textarea>${content[0] || ''}</textarea>`; break;
                     case 'question': headerText = 'Pergunta (Sim/Não)'; headerIcon = 'fa-question-circle'; contentHtml = `<label>Pergunta:</label><textarea>${content[0] || ''}</textarea>`; break;
                     case 'userInput': headerText = 'Entrada do Utilizador'; headerIcon = 'fa-keyboard'; contentHtml = `<label>Pergunta:</label><textarea>${content[0] || ''}</textarea><label>Salvar em:</label><input type="text" value="${content[1] || ''}">`; break;
                     case 'delay': headerText = 'Atraso'; headerIcon = 'fa-clock'; contentHtml = `<label>Duração (ms):</label><input type="number" value="${content[0] || '1500'}">`; break;
@@ -914,6 +929,8 @@
                             case 'end': onUiUpdate({ type: 'addMessage', text: "Fluxo finalizado.", sender: "received" }); return;
                             case 'message': onUiUpdate({ type: 'addMessage', text: content[0], sender: "received" }); break;
                             case 'image': onUiUpdate({ type: 'addMessage', text: null, imageUrl: content[0], sender: "received" }); break;
+                            case 'video': onUiUpdate({ type: 'addVideo', url: content[0] }); break;
+                            case 'audio': onUiUpdate({ type: 'addAudio', url: content[0] }); break;
                             case 'delay': await onUiUpdate({ type: 'showTyping', duration: parseInt(content[0] || 1500) }); break;
                             case 'cta': onUiUpdate({ type: 'addCta', text: content[0], url: content[1] }); return;
                             case 'userInput':
@@ -927,6 +944,9 @@
                                 const choiceVal = node.type === 'question' ? (choiceIndex === 0 ? 'yes' : 'no') : choiceIndex.toString();
                                 nextNodeId = connections.find(c => c.from === currentNodeId && c.choice === choiceVal)?.to;
                                 break;
+                        }
+                        if (node.type !== 'question' && node.type !== 'multipleChoice') {
+                           nextNodeId = connections.find(c => c.from === currentNodeId)?.to;
                         }
                         currentNodeId = nextNodeId;
                     }
@@ -948,10 +968,30 @@
                         if (text) msgDiv.innerHTML += `<span>${text.replace(/\n/g, '<br>')}</span>`;
                         previewChatBody.appendChild(msgDiv);
                         previewChatBody.scrollTop = previewChatBody.scrollHeight;
+                        return msgDiv;
                     };
                     switch (action.type) {
                         case 'addMessage': addMessage(action.text, action.sender, action.imageUrl); break;
                         case 'addCta': addMessage(null, "received").innerHTML = `<div class="cta-button-container"><a class="cta-button" href="${action.url}" target="_blank">${action.text}</a></div>`; break;
+                        case 'addVideo':
+                            let embedHtml = '';
+                            try {
+                                const url = new URL(action.url);
+                                if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
+                                    const videoId = url.hostname.includes('youtu.be') ? url.pathname.slice(1) : url.searchParams.get('v');
+                                    if(videoId) embedHtml = `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                                } else if (url.hostname.includes('vimeo.com')) {
+                                    const videoId = url.pathname.split('/').pop();
+                                    if(videoId) embedHtml = `<iframe src="https://player.vimeo.com/video/${videoId}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+                                }
+                            } catch (e) { /* Invalid URL */ }
+                            
+                            if (embedHtml) addMessage(null, "received").innerHTML = `<div class="video-container">${embedHtml}</div>`;
+                            else addMessage('Link de vídeo inválido.', 'received');
+                            break;
+                        case 'addAudio':
+                            addMessage(null, "received").innerHTML = `<audio controls src="${action.url}" style="width: 100%;"></audio>`;
+                            break;
                         case 'showTyping':
                             const typing = document.createElement('div');
                             typing.className = 'typing-indicator';
@@ -1009,6 +1049,9 @@
                     .message.received { background-color: #ffffff; align-self: flex-start; color: black; }
                     .message.sent { background-color: #dcf8c6; align-self: flex-end; color: black; }
                     .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+                    .message .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; }
+                    .message .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+                    .message audio { width: 100%; }
                     .typing-indicator { align-self: flex-start; padding: 10px 15px; display: flex; align-items: center; background-color: #ffffff; border-radius: 8px; max-width: 80px; }
                     .typing-indicator span { height: 8px; width: 8px; background-color: #888; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.3s infinite ease-in-out; }
                     .typing-indicator span:nth-child(2) { animation-delay: 0.1s; } .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
@@ -1017,9 +1060,9 @@
                     .choice-button { background-color: #fff; border: 1px solid #075E54; color: #075E54; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
                     .cta-button-container { padding: 10px; align-self: stretch; }
                     .cta-button { background: linear-gradient(45deg, #25D366, #128C7E); color: white; text-align: center; text-decoration: none; font-size: 1.1em; font-weight: bold; padding: 15px; border-radius: 30px; display: block; }
-                    .user-input-container { display: flex; gap: 5px; margin-top: 10px; align-self: stretch; padding: 0 10px 10px; background: #e5ddd5; }
+                    .user-input-container { position: sticky; bottom: 0; display: flex; gap: 5px; padding: 10px; background: #f0f2f5; border-top: 1px solid #ddd; }
                     .user-input-container input { flex-grow: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; }
-                    .user-input-container button { padding: 8px 15px; border-radius: 50%; border: none; background-color: #075E54; color: white; cursor: pointer; width:45px; height:45px; }
+                    .user-input-container button { padding: 8px 15px; border-radius: 50%; border: none; background-color: #075E54; color: white; cursor: pointer; width:45px; height:45px; flex-shrink:0; }
                 `;
                 const runnerJs = `
                     const flowState = ${JSON.stringify(flowState)};
@@ -1037,10 +1080,29 @@
                             if (text) msgDiv.innerHTML += \`<span>\${text.replace(/\\n/g, '<br>')}</span>\`;
                             chatBody.appendChild(msgDiv);
                             chatBody.scrollTop = chatBody.scrollHeight;
+                            return msgDiv;
                         };
                         switch (action.type) {
                             case 'addMessage': addMessage(action.text, action.sender, action.imageUrl); break;
                             case 'addCta': addMessage(null, "received").innerHTML = \`<div class="cta-button-container"><a class="cta-button" href="\${action.url}" target="_blank">\${action.text}</a></div>\`; break;
+                            case 'addVideo':
+                                let embedHtml = '';
+                                try {
+                                    const url = new URL(action.url);
+                                    if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
+                                        const videoId = url.hostname.includes('youtu.be') ? url.pathname.slice(1) : url.searchParams.get('v');
+                                        if(videoId) embedHtml = \`<iframe src="https://www.youtube.com/embed/\${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>\`;
+                                    } else if (url.hostname.includes('vimeo.com')) {
+                                        const videoId = url.pathname.split('/').pop();
+                                        if(videoId) embedHtml = \`<iframe src="https://player.vimeo.com/video/\${videoId}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>\`;
+                                    }
+                                } catch (e) { /* Invalid URL */ }
+                                if (embedHtml) addMessage(null, "received").innerHTML = \`<div class="video-container">\${embedHtml}</div>\`;
+                                else addMessage('Link de vídeo inválido.', 'received');
+                                break;
+                            case 'addAudio':
+                                addMessage(null, "received").innerHTML = \`<audio controls src="\${action.url}" style="width: 100%;"></audio>\`;
+                                break;
                             case 'showTyping':
                                 const typing = document.createElement('div');
                                 typing.className = 'typing-indicator';

@@ -104,12 +104,11 @@
         #preview-chat-body::-webkit-scrollbar { width: 6px; }
         #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
         
-        /* Estilos para o player de áudio customizado */
         .audio-player-container {
             align-self: flex-start; max-width: 80%; background-color: #fff;
             padding: 8px; border-radius: 10px; border-top-left-radius: 0;
             box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 8px; width: 290px;
         }
         .audio-player-container img { width: 40px; height: 40px; border-radius: 50%; }
         .audio-player-container .play-pause-btn {
@@ -164,7 +163,6 @@
             <div class="mb-6">
                 <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
                 <div class="space-y-2">
-                    <div class="draggable" draggable="true" data-component-type="received-message"><i class="fas fa-comment-dots neon-yellow-text"></i><span>Mensagem Recebida</span></div>
                     <div class="draggable" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane neon-yellow-text"></i><span>Mensagem Enviada</span></div>
                     <div class="draggable" draggable="true" data-component-type="image-message"><i class="fas fa-image neon-yellow-text"></i><span>Imagem</span></div>
                     <div class="draggable" draggable="true" data-component-type="audio-message"><i class="fas fa-file-audio neon-yellow-text"></i><span>Áudio</span></div>
@@ -234,7 +232,6 @@
         let profilePicUrl = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
 
         const componentInfoMap = {
-            'received-message': { name: 'Mensagem Recebida', icon: 'fa-comment-dots', text: 'Olá! Escreva sua mensagem aqui.' },
             'sent-message': { name: 'Mensagem Enviada', icon: 'fa-paper-plane', text: 'Esta é a minha resposta.' },
             'ask-question': { name: 'Pergunta com Botões', icon: 'fa-question-circle', text: 'Qual é a sua pergunta?', buttons: 'Sim;Não' },
             'delay': { name: 'Esperar (Delay)', icon: 'fa-clock', delay: 2 },
@@ -464,7 +461,7 @@
             let formHTML = '';
 
             switch(type) {
-                case 'received-message': case 'sent-message':
+                case 'sent-message':
                     formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Texto</label><textarea id="text-input" class="w-full p-2 rounded-md" rows="4">${element.dataset.text}</textarea>`;
                     break;
                 case 'ask-question':
@@ -498,7 +495,7 @@
             let displayText = '';
 
             switch(type) {
-                case 'received-message': case 'sent-message':
+                case 'sent-message':
                     elementToEdit.dataset.text = modal.querySelector('#text-input').value;
                     displayText = elementToEdit.dataset.text;
                     break;
@@ -563,6 +560,12 @@
                     const videoId = element.dataset.url.split('v=')[1]?.split('&')[0] || element.dataset.url.split('/').pop();
                     wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
                         <iframe style="width: 100%; aspect-ratio: 16/9; border-radius: 8px;" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
+                    </div>`;
+                    break;
+                case 'image-message':
+                     wrapper.innerHTML = `<div style="align-self: flex-start; max-width: 80%; background-color: #fff; padding: 5px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1);">
+                        <img src="${element.dataset.url}" style="width: 100%; border-radius: 8px;" alt="Imagem do fluxo" onerror="this.src='https://placehold.co/600x400/2A2A2A/EAEAEA?text=Erro!'">
+                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; padding: 0 5px 2px;">${time}</span>
                     </div>`;
                     break;
                 case 'cta-button':
@@ -641,7 +644,14 @@
                         chatBody.appendChild(audioPlayer);
                         setupAudioPlayer(audioPlayer);
                     }
-                } else {
+                } else if (type === 'user-input') {
+                    const previewElement = createPreviewComponent(comp);
+                    chatBody.appendChild(previewElement);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    await delay(2500); // Time for the user to "read" and "type"
+                    previewElement.remove();
+                }
+                else {
                     const previewElement = createPreviewComponent(comp);
                     if (previewElement) {
                         chatBody.appendChild(previewElement);
@@ -649,7 +659,7 @@
                             setupAudioPlayer(previewElement);
                         }
                         chatBody.scrollTop = chatBody.scrollHeight;
-                        await delay(500);
+                        await delay(800);
                     }
                 }
             }

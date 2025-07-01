@@ -186,6 +186,8 @@
                 <button id="import-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-upload"></i> Importar</button>
                 <button id="export-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-download"></i> Exportar</button>
                 <button id="export-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-code"></i> Exportar HTML</button>
+                <!-- MUDANÇA: Adicionado novo botão para exportar para WordPress -->
+                <button id="export-wp-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fab fa-wordpress"></i> Exportar WP</button>
                 <input type="file" id="import-file-input" class="hidden" accept=".json">
                 <button id="logout-btn" class="ml-4 px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white transition-colors"><i class="fas fa-sign-out-alt"></i> Deslogar</button>
             </div>
@@ -1092,6 +1094,110 @@
             applyTransform();
         }
 
+        function exportWpJson() {
+            const components = Array.from(transformer.querySelectorAll('.canvas-component'));
+            const connectionsData = connections.map(conn => ({
+                startId: conn.start.id,
+                endId: conn.end.id,
+                startIndex: conn.startIndex
+            }));
+
+            const connectionsMap = new Map();
+            connectionsData.forEach(conn => {
+                if (!connectionsMap.has(conn.startId)) {
+                    connectionsMap.set(conn.startId, []);
+                }
+                connectionsMap.get(conn.startId).push(conn);
+            });
+
+            const nodes = components.map(comp => {
+                const type = comp.dataset.componentType;
+                const data = { ...comp.dataset };
+                const nodeData = {};
+                const outgoingConnections = connectionsMap.get(comp.id) || [];
+
+                delete data.componentType;
+                delete data.name;
+                delete data.icon;
+
+                Object.keys(data).forEach(key => {
+                    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+                        nodeData[key] = data[key];
+                    }
+                });
+
+                if (type === 'ask-question') {
+                    nodeData.buttons = (data.buttons || '').split(';').map((label, index) => {
+                        const connection = outgoingConnections.find(c => c.startIndex == index);
+                        return {
+                            label: label,
+                            targetNode: connection ? connection.endId : null
+                        };
+                    });
+                } else {
+                    if (outgoingConnections.length > 0) {
+                        nodeData.targetNode = outgoingConnections[0].endId;
+                    }
+                }
+                
+                // Limpa propriedades que já foram processadas
+                delete nodeData.buttons;
+                if(type !== 'ask-question') delete nodeData.text;
+
+
+                return {
+                    id: comp.id,
+                    type: type,
+                    data: { ...data }, // Mantem os dados originais para simplicidade por enquanto
+                    position: {
+                        x: parseFloat(comp.style.left),
+                        y: parseFloat(comp.style.top)
+                    },
+                    connections: {
+                        outputs: outgoingConnections.map(c => ({
+                            endId: c.endId,
+                            startIndex: c.startIndex
+                        }))
+                    }
+                };
+            });
+
+            const wpFlowData = {
+                name: document.getElementById('chat-name-input').value || 'Meu Funil',
+                settings: {
+                    chatName: document.getElementById('chat-name-input').value,
+                    profilePicUrl: document.getElementById('chat-photo-input').value,
+                },
+                nodes: components.map(comp => {
+                    const outgoing = connections.filter(c => c.start.id === comp.id).map(c => ({
+                        endId: c.end.id,
+                        startIndex: c.startIndex
+                    }));
+                    return {
+                        id: comp.id,
+                        type: comp.dataset.componentType,
+                        data: {...comp.dataset},
+                        position: {
+                            left: comp.style.left,
+                            top: comp.style.top
+                        },
+                        connections: outgoing
+                    }
+                })
+            };
+
+            const dataStr = JSON.stringify(wpFlowData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'funil-wordpress.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
         function exportHTML() {
             const flowData = {
                 settings: {
@@ -1257,7 +1363,6 @@
 
             const customScripts = flowData.settings.customScripts || '';
 
-            // MUDANÇA: CSS ajustado para uma experiência de tela cheia no celular
             const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -1336,6 +1441,8 @@
         document.getElementById('import-btn').addEventListener('click', triggerImport);
         document.getElementById('import-file-input').addEventListener('change', handleFileImport);
         document.getElementById('export-html-btn').addEventListener('click', exportHTML);
+        // MUDANÇA: Adicionado o event listener para o novo botão
+        document.getElementById('export-wp-btn').addEventListener('click', exportWpJson);
 
         updatePreview();
     });

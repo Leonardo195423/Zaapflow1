@@ -4,15 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZaapFlow - Construtor de Funil</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Biblioteca para as linhas de conexão -->
     <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js"></script>
 
     <style>
@@ -149,16 +145,13 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
     
-    <!-- Tela de Login -->
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-500">
         <div id="login-box" class="w-full max-w-sm p-8 space-y-6 bg-bg-secondary/80 rounded-2xl shadow-2xl shadow-black/50 backdrop-blur-md border border-border-color">
-            <!-- Logo -->
             <div class="flex justify-center items-center gap-3">
                 <i class="fa-solid fa-bolt text-4xl neon-yellow-text"></i>
                 <h1 class="text-4xl font-bold text-primary">ZaapFlow</h1>
             </div>
 
-            <!-- Formulário -->
             <form id="login-form" class="space-y-6">
                 <div>
                     <label for="username" class="text-sm font-semibold text-text-secondary">Usuário</label>
@@ -178,7 +171,6 @@
         </div>
     </div>
 
-    <!-- Conteúdo Principal da Aplicação (inicialmente escondido) -->
     <div id="app-wrapper" class="h-full flex-col overflow-hidden hidden">
         <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
             <div class="flex items-center gap-3">
@@ -195,7 +187,6 @@
             </div>
         </header>
 
-        <!-- CORREÇÃO: A classe 'min-h-0' foi adicionada aqui para forçar o container a respeitar os limites de altura -->
         <div class="flex-grow grid grid-cols-12 overflow-hidden min-h-0">
             <aside class="col-span-12 md:col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
                 <div class="mb-6">
@@ -257,8 +248,8 @@
                      <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
                 </div>
-                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 min-h-0">
-                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
+                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 flex flex-col min-h-0">
+                     <div id="preview-chat-container" class="w-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col flex-1"></div>
                 </div>
             </aside>
         </div>
@@ -556,6 +547,7 @@
             if (!chatBody) {
                 const previewChatContainer = document.getElementById('preview-chat-container');
                 if (!previewChatContainer) return;
+                // MUDANÇA 3: Adicionado 'flex-shrink: 0' ao header do chat para garantir que ele não seja esmagado
                 previewChatContainer.innerHTML = `
                     <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
                         <img src="${profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'">
@@ -1234,7 +1226,6 @@
             let pixelScript = '';
             if (pixelId && pixelId.trim() !== '') {
                 pixelScript = `
-    <!-- Facebook Pixel Code -->
     <script>
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -1251,8 +1242,7 @@
     <noscript><img height="1" width="1" style="display:none"
     src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1"
     /></noscript>
-    <!-- End Facebook Pixel Code -->
-                `;
+    `;
             }
 
             const customScripts = flowData.settings.customScripts || '';

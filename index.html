@@ -994,12 +994,10 @@
                     chatName: document.getElementById('chat-name-input').value,
                     profilePicUrl: document.getElementById('chat-photo-input').value
                 },
-                components: Array.from(transformer.querySelectorAll('.canvas-component')).map(comp => {
-                    const data = {...comp.dataset};
-                    // O ID do DOM não é necessário no objeto de dados exportado
-                    delete data.id;
-                    return data;
-                }),
+                components: Array.from(transformer.querySelectorAll('.canvas-component')).map(comp => ({
+                    id: comp.id,
+                    dataset: { ...comp.dataset }
+                })),
                 connections: connections.map(conn => ({
                     startId: conn.start.id,
                     endId: conn.end.id,
@@ -1007,7 +1005,6 @@
                 }))
             };
 
-            // Incorpora as funções de execução diretamente no HTML exportado
             const scriptToEmbed = `
                 const flowData = ${JSON.stringify(flowData, null, 2)};
                 const chatContainer = document.getElementById('preview-chat-container');
@@ -1015,40 +1012,28 @@
 
                 ${getLiveVariables.toString()}
                 ${setupAudioPlayer.toString()}
-                ${createPreviewComponent.toString().replace(/`/g, '\\`')} // Escapa backticks na função
+                ${createPreviewComponent.toString().replace(/`/g, '\\`')}
                 
                 async function runStandaloneFlow() {
                     const delay = ms => new Promise(res => setTimeout(res, ms));
-                    const allComponents = flowData.components.map((c, i) => ({...c, id: \`comp_\${i}\`})); // Gera IDs para o mapa
-                    flowData.components = allComponents;
                     
-                    const componentMap = new Map(allComponents.map(c => [c.id, c]));
-                    
-                    // Mapeia conexões para os IDs gerados
-                    const remappedConnections = flowData.connections.map(conn => {
-                        const startComp = flowData.components.find(c => c.id === conn.startId);
-                        const endComp = flowData.components.find(c => c.id === conn.endId);
-                        return { ...conn, startId: startComp.id, endId: endComp.id };
-                    });
-
-                    const endNodeIds = new Set(remappedConnections.map(conn => conn.endId));
-                    const startNodes = allComponents.filter(c => !endNodeIds.has(c.id));
+                    const componentMap = new Map(flowData.components.map(c => [c.id, c]));
+                    const endNodeIds = new Set(flowData.connections.map(conn => conn.endId));
+                    const startNodes = flowData.components.filter(c => !endNodeIds.has(c.id));
                     
                     const liveVariables = getLiveVariables();
+                    const allText = flowData.components.map(c => c.dataset.text || '').join(' ');
 
-                    if (flowData.components.map(c => c.text || '').join('').includes('{{nome}}')) {
+                    if (allText.includes('{{nome}}')) {
                         const name = await new Promise(resolve => {
                             const questionHTML = \`<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">Qual é o seu nome?</div>\`;
                             chatBody.innerHTML += questionHTML;
-                            
                             const inputContainer = document.createElement('div');
                             inputContainer.innerHTML = \`<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;"><input type="text" placeholder="Digite seu nome..." class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"><button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button></div>\`;
                             chatBody.appendChild(inputContainer);
-                            
                             const inputField = inputContainer.querySelector('.preview-input');
                             const sendButton = inputContainer.querySelector('.preview-send-btn');
                             inputField.focus();
-
                             const handleSend = () => {
                                 const userText = inputField.value || "Visitante";
                                 inputContainer.remove();
@@ -1068,13 +1053,14 @@
                     
                     const executeComponent = async (component) => {
                         if (!component) return;
-                        const type = component.componentType;
+                        const type = component.dataset.componentType;
                         let nextComponentId = null;
-
-                        const previewElement = createPreviewComponent({ dataset: component }, liveVariables);
+                        
+                        const previewElement = createPreviewComponent(component, liveVariables);
                         chatBody.appendChild(previewElement);
+                        if(previewElement.querySelector('.audio-player-container')) setupAudioPlayer(previewElement);
                         chatBody.scrollTop = chatBody.scrollHeight;
-                        await delay(500);
+                        await delay(800);
                         
                         if (type === 'ask-question') {
                              const chosenIndex = await new Promise(resolve => {
@@ -1091,10 +1077,31 @@
                                     }, { once: true });
                                 });
                             });
-                            const connection = remappedConnections.find(c => c.startId === component.id && c.startIndex == chosenIndex);
+                            const connection = flowData.connections.find(c => c.startId === component.id && c.startIndex == chosenIndex);
+                            if (connection) nextComponentId = connection.endId;
+                        } else if (type === 'user-input') {
+                            const inputContainer = previewElement;
+                            await new Promise(resolve => {
+                                const inputField = inputContainer.querySelector('.preview-input');
+                                const sendButton = inputContainer.querySelector('.preview-send-btn');
+                                inputField.disabled = false; inputField.focus();
+                                const handleSend = () => {
+                                    const userText = inputField.value || "Resposta simulada";
+                                    inputContainer.remove();
+                                    const sentMessage = document.createElement('div');
+                                    sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
+                                    sentMessage.innerHTML = \`<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">\${userText}</div>\`;
+                                    chatBody.appendChild(sentMessage);
+                                    chatBody.scrollTop = chatBody.scrollHeight;
+                                    resolve();
+                                };
+                                sendButton.onclick = handleSend;
+                                inputField.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+                            });
+                            const connection = flowData.connections.find(c => c.startId === component.id);
                             if (connection) nextComponentId = connection.endId;
                         } else {
-                            const connection = remappedConnections.find(c => c.startId === component.id);
+                            const connection = flowData.connections.find(c => c.startId === component.id);
                             if (connection) nextComponentId = connection.endId;
                         }
                         

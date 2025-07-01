@@ -195,7 +195,8 @@
             </div>
         </header>
 
-        <div class="flex-grow grid grid-cols-12 overflow-hidden">
+        <!-- CORREÇÃO: A classe 'min-h-0' foi adicionada aqui para forçar o container a respeitar os limites de altura -->
+        <div class="flex-grow grid grid-cols-12 overflow-hidden min-h-0">
             <aside class="col-span-12 md:col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
                 <div class="mb-6">
                     <h3 class="font-semibold text-text-secondary mb-3">CONFIGURAÇÕES</h3>
@@ -256,7 +257,6 @@
                      <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
                 </div>
-                <!-- A classe 'min-h-0' foi adicionada aqui para corrigir o problema de crescimento do container -->
                 <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 min-h-0">
                      <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
                 </div>

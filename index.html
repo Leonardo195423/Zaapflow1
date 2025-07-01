@@ -282,13 +282,12 @@
         const appWrapper = document.getElementById('app-wrapper');
         const logoutBtn = document.getElementById('logout-btn');
 
-        // MUDANÇA 1: Verificar se o usuário já está logado ao carregar a página
         if (localStorage.getItem('isLoggedIn') === 'true') {
-            loginOverlay.style.display = 'none'; // Esconde a tela de login
+            loginOverlay.style.display = 'none';
             appWrapper.classList.remove('hidden');
             appWrapper.classList.add('flex');
         } else {
-            loginOverlay.style.opacity = '1'; // Garante que a tela de login esteja visível
+            loginOverlay.style.opacity = '1';
         }
 
         loginForm.addEventListener('submit', (e) => {
@@ -297,9 +296,7 @@
             const password = passwordInput.value;
 
             if (username === 'admin' && password === 'admin123') {
-                // MUDANÇA 2: Salvar o estado de login no localStorage
                 localStorage.setItem('isLoggedIn', 'true');
-
                 errorMessage.classList.add('hidden');
                 loginOverlay.classList.add('opacity-0');
                 
@@ -321,9 +318,7 @@
         });
 
         logoutBtn.addEventListener('click', () => {
-            // MUDANÇA 3: Remover o estado de login do localStorage
             localStorage.removeItem('isLoggedIn');
-
             appWrapper.classList.add('hidden');
             appWrapper.classList.remove('flex');
             
@@ -1262,20 +1257,48 @@
 
             const customScripts = flowData.settings.customScripts || '';
 
+            // MUDANÇA: CSS ajustado para uma experiência de tela cheia no celular
             const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Prévia do Funil - ${flowData.settings.chatName}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     ${pixelScript}
     ${customScripts}
     <style>
-        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        #preview-chat-container { background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); width: 100%; max-width: 450px; height: 90vh; max-height: 800px; margin: 20px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); overflow: hidden; display: flex; flex-direction: column; }
-        #preview-chat-body { flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #e5ddd5;
+        }
+        #preview-chat-container {
+            background-color: #e5ddd5;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
+            margin: 0;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #preview-chat-body {
+            flex-grow: 1;
+            padding: 20px 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
         #preview-chat-body::-webkit-scrollbar { width: 6px; }
         #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
         .audio-player-container { align-self: flex-start; max-width: 80%; background-color: #fff; padding: 8px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333; display: flex; align-items: center; gap: 8px; width: 290px; }

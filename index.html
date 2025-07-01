@@ -191,9 +191,7 @@
             </div>
         </header>
 
-        <!-- LAYOUT PRINCIPAL REFEITO COM FLEXBOX PARA MAIOR ROBUSTEZ -->
         <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            <!-- Coluna da Esquerda (Elementos) -->
             <aside class="w-full lg:w-1/4 bg-secondary p-4 overflow-y-auto border-r border-border-color flex-shrink-0 lg:flex-shrink">
                 <div class="mb-6">
                     <h3 class="font-semibold text-text-secondary mb-3">CONFIGURAÇÕES</h3>
@@ -238,7 +236,6 @@
                 </div>
             </aside>
 
-            <!-- Coluna Central (Canvas) -->
             <main class="flex-1 relative border-r border-border-color overflow-hidden">
                 <div id="flow-canvas" class="w-full h-full">
                     <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;"></div>
@@ -250,7 +247,6 @@
                 </div>
             </main>
 
-            <!-- Coluna da Direita (Prévia) -->
             <aside class="w-full lg:w-1/3 bg-secondary p-4 flex flex-col flex-shrink-0 lg:flex-shrink">
                 <div class="flex justify-between items-center mb-4 flex-shrink-0">
                      <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
@@ -286,17 +282,29 @@
         const appWrapper = document.getElementById('app-wrapper');
         const logoutBtn = document.getElementById('logout-btn');
 
+        // MUDANÇA 1: Verificar se o usuário já está logado ao carregar a página
+        if (localStorage.getItem('isLoggedIn') === 'true') {
+            loginOverlay.style.display = 'none'; // Esconde a tela de login
+            appWrapper.classList.remove('hidden');
+            appWrapper.classList.add('flex');
+        } else {
+            loginOverlay.style.opacity = '1'; // Garante que a tela de login esteja visível
+        }
+
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const username = usernameInput.value;
             const password = passwordInput.value;
 
             if (username === 'admin' && password === 'admin123') {
+                // MUDANÇA 2: Salvar o estado de login no localStorage
+                localStorage.setItem('isLoggedIn', 'true');
+
                 errorMessage.classList.add('hidden');
                 loginOverlay.classList.add('opacity-0');
                 
                 setTimeout(() => {
-                    loginOverlay.classList.add('hidden');
+                    loginOverlay.style.display = 'none';
                     appWrapper.classList.remove('hidden');
                     appWrapper.classList.add('flex');
                 }, 500);
@@ -313,17 +321,17 @@
         });
 
         logoutBtn.addEventListener('click', () => {
-            // Esconde a aplicação
+            // MUDANÇA 3: Remover o estado de login do localStorage
+            localStorage.removeItem('isLoggedIn');
+
             appWrapper.classList.add('hidden');
             appWrapper.classList.remove('flex');
             
-            // Limpa o formulário de login
             usernameInput.value = '';
             passwordInput.value = '';
             errorMessage.classList.add('hidden');
             
-            // Mostra a tela de login
-            loginOverlay.classList.remove('hidden');
+            loginOverlay.style.display = 'flex';
             requestAnimationFrame(() => {
                  loginOverlay.classList.remove('opacity-0');
             });

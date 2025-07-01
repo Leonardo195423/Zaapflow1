@@ -79,7 +79,7 @@
             border: 1px solid var(--border-color); width: 90%; max-width: 500px;
         }
 
-        input[type="text"], input[type="number"], textarea {
+        input[type="text"], input[type="password"], input[type="number"], textarea {
             background-color: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
@@ -131,89 +131,136 @@
             display: flex; flex-direction: column; align-items: flex-end;
             font-size: 0.7em; color: #999;
         }
+
+        /* Estilos da Tela de Login */
+        #login-overlay {
+            background: radial-gradient(ellipse at bottom, rgba(255, 210, 63, 0.4) 0%, var(--bg-main) 60%);
+        }
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .animate-shake {
+          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
+    
+    <!-- Tela de Login -->
+    <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-500">
+        <div id="login-box" class="w-full max-w-sm p-8 space-y-6 bg-bg-secondary/80 rounded-2xl shadow-2xl shadow-black/50 backdrop-blur-md border border-border-color">
+            <!-- Logo -->
+            <div class="flex justify-center items-center gap-3">
+                <i class="fa-solid fa-bolt text-4xl neon-yellow-text"></i>
+                <h1 class="text-4xl font-bold text-primary">ZaapFlow</h1>
+            </div>
 
-    <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
-        <div class="flex items-center gap-3">
-            <i class="fa-solid fa-bolt text-2xl neon-yellow-text"></i>
-            <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
+            <!-- Formulário -->
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="username" class="text-sm font-semibold text-text-secondary">Usuário</label>
+                    <input id="username" name="username" type="text" required class="w-full p-3 mt-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFD23F] transition">
+                </div>
+                <div>
+                    <label for="password" class="text-sm font-semibold text-text-secondary">Senha</label>
+                    <input id="password" name="password" type="password" required class="w-full p-3 mt-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFD23F] transition">
+                </div>
+                <p id="error-message" class="text-red-500 text-sm text-center hidden">Usuário ou senha inválidos.</p>
+                <div>
+                    <button type="submit" class="w-full py-3 mt-2 font-bold text-black bg-[#FFD23F] rounded-lg hover:bg-[#F8B700] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-bg-secondary focus:ring-[#FFD23F] transition-all duration-300 shadow-lg shadow-yellow-500/20">
+                        Entrar
+                    </button>
+                </div>
+            </form>
         </div>
-        <div class="hidden md:block text-lg font-semibold">Construtor de Funil</div>
-        <div class="flex items-center gap-2">
-            <button id="import-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-upload"></i> Importar</button>
-            <button id="export-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-download"></i> Exportar</button>
-            <button id="export-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-code"></i> Exportar HTML</button>
-            <input type="file" id="import-file-input" class="hidden" accept=".json">
+    </div>
+
+    <!-- Conteúdo Principal da Aplicação (inicialmente escondido) -->
+    <div id="app-wrapper" class="h-full flex-col overflow-hidden hidden">
+        <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-bolt text-2xl neon-yellow-text"></i>
+                <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
+            </div>
+            <div class="hidden md:block text-lg font-semibold">Construtor de Funil</div>
+            <div class="flex items-center gap-2">
+                <button id="import-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-upload"></i> Importar</button>
+                <button id="export-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-download"></i> Exportar</button>
+                <button id="export-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-code"></i> Exportar HTML</button>
+                <input type="file" id="import-file-input" class="hidden" accept=".json">
+                <button id="logout-btn" class="ml-4 px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white transition-colors"><i class="fas fa-sign-out-alt"></i> Deslogar</button>
+            </div>
+        </header>
+
+        <div class="flex-grow grid grid-cols-12 overflow-hidden">
+            <aside class="col-span-12 md:col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
+                <div class="mb-6">
+                    <h3 class="font-semibold text-text-secondary mb-3">CONFIGURAÇÕES</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="chat-name-input" class="text-sm text-text-secondary">Nome do Chat</label>
+                            <input type="text" id="chat-name-input" value="TOP FLIX" class="w-full mt-1 p-2 rounded-md text-sm">
+                        </div>
+                        <div>
+                            <label for="chat-photo-input" class="text-sm text-text-secondary">URL da Foto de Perfil</label>
+                            <input type="text" id="chat-photo-input" value="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" class="w-full mt-1 p-2 rounded-md text-sm">
+                        </div>
+                        <div>
+                            <label for="pixel-id-input" class="text-sm text-text-secondary">ID do Pixel do Facebook</label>
+                            <input type="text" id="pixel-id-input" placeholder="Ex: 1234567890123456" class="w-full mt-1 p-2 rounded-md text-sm">
+                        </div>
+                        <div>
+                            <label for="custom-scripts-input" class="text-sm text-text-secondary">Scripts Adicionais (head)</label>
+                            <textarea id="custom-scripts-input" placeholder="Cole aqui scripts do UTMfy, Google Analytics, etc." class="w-full mt-1 p-2 rounded-md text-sm" rows="4"></textarea>
+                        </div>
+                        <button id="save-settings-btn" class="w-full p-2 rounded-md text-sm btn-action-yellow">Salvar Configurações</button>
+                    </div>
+                </div>
+                <hr class="border-border-color my-6">
+                <div class="mb-6">
+                    <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
+                    <div class="space-y-2">
+                        <div class="draggable" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane neon-yellow-text"></i><span>Mensagem Enviada</span></div>
+                        <div class="draggable" draggable="true" data-component-type="image-message"><i class="fas fa-image neon-yellow-text"></i><span>Imagem</span></div>
+                        <div class="draggable" draggable="true" data-component-type="audio-message"><i class="fas fa-file-audio neon-yellow-text"></i><span>Áudio</span></div>
+                        <div class="draggable" draggable="true" data-component-type="video-message"><i class="fab fa-youtube neon-yellow-text"></i><span>Vídeo do YouTube</span></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-text-secondary mb-3">LÓGICA E AÇÕES</h3>
+                    <div class="space-y-2">
+                         <div class="draggable" draggable="true" data-component-type="ask-question"><i class="fas fa-question-circle neon-yellow-text"></i><span>Pergunta com Botões</span></div>
+                         <div class="draggable" draggable="true" data-component-type="user-input"><i class="fas fa-keyboard neon-yellow-text"></i><span>Campo de Resposta</span></div>
+                         <div class="draggable" draggable="true" data-component-type="cta-button"><i class="fas fa-mouse-pointer neon-yellow-text"></i><span>Botão (CTA)</span></div>
+                         <div class="draggable" draggable="true" data-component-type="delay"><i class="fas fa-clock neon-yellow-text"></i><span>Esperar (Delay)</span></div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="col-span-12 md:col-span-9 lg:col-span-5 relative border-r border-border-color overflow-hidden">
+                <div id="flow-canvas" class="w-full h-full">
+                    <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;"></div>
+                </div>
+                <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
+                    <button id="zoom-in-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-plus"></i></button>
+                    <button id="zoom-out-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-minus"></i></button>
+                    <button id="reset-view-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-expand"></i></button>
+                </div>
+            </main>
+
+            <aside class="hidden lg:flex col-span-4 bg-secondary p-4 flex-col">
+                <div class="flex justify-between items-center mb-4">
+                     <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
+                     <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
+                </div>
+                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
+                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
+                </div>
+            </aside>
         </div>
-    </header>
-
-    <div class="flex-grow grid grid-cols-12 overflow-hidden">
-        <aside class="col-span-12 md:col-span-3 bg-secondary p-4 overflow-y-auto border-r border-border-color">
-            <div class="mb-6">
-                <h3 class="font-semibold text-text-secondary mb-3">CONFIGURAÇÕES</h3>
-                <div class="space-y-3">
-                    <div>
-                        <label for="chat-name-input" class="text-sm text-text-secondary">Nome do Chat</label>
-                        <input type="text" id="chat-name-input" value="TOP FLIX" class="w-full mt-1 p-2 rounded-md text-sm">
-                    </div>
-                    <div>
-                        <label for="chat-photo-input" class="text-sm text-text-secondary">URL da Foto de Perfil</label>
-                        <input type="text" id="chat-photo-input" value="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" class="w-full mt-1 p-2 rounded-md text-sm">
-                    </div>
-                    <div>
-                        <label for="pixel-id-input" class="text-sm text-text-secondary">ID do Pixel do Facebook</label>
-                        <input type="text" id="pixel-id-input" placeholder="Ex: 1234567890123456" class="w-full mt-1 p-2 rounded-md text-sm">
-                    </div>
-                    <div>
-                        <label for="custom-scripts-input" class="text-sm text-text-secondary">Scripts Adicionais (head)</label>
-                        <textarea id="custom-scripts-input" placeholder="Cole aqui scripts do UTMfy, Google Analytics, etc." class="w-full mt-1 p-2 rounded-md text-sm" rows="4"></textarea>
-                    </div>
-                    <button id="save-settings-btn" class="w-full p-2 rounded-md text-sm btn-action-yellow">Salvar Configurações</button>
-                </div>
-            </div>
-            <hr class="border-border-color my-6">
-            <div class="mb-6">
-                <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
-                <div class="space-y-2">
-                    <div class="draggable" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane neon-yellow-text"></i><span>Mensagem Enviada</span></div>
-                    <div class="draggable" draggable="true" data-component-type="image-message"><i class="fas fa-image neon-yellow-text"></i><span>Imagem</span></div>
-                    <div class="draggable" draggable="true" data-component-type="audio-message"><i class="fas fa-file-audio neon-yellow-text"></i><span>Áudio</span></div>
-                    <div class="draggable" draggable="true" data-component-type="video-message"><i class="fab fa-youtube neon-yellow-text"></i><span>Vídeo do YouTube</span></div>
-                </div>
-            </div>
-            <div>
-                <h3 class="font-semibold text-text-secondary mb-3">LÓGICA E AÇÕES</h3>
-                <div class="space-y-2">
-                     <div class="draggable" draggable="true" data-component-type="ask-question"><i class="fas fa-question-circle neon-yellow-text"></i><span>Pergunta com Botões</span></div>
-                     <div class="draggable" draggable="true" data-component-type="user-input"><i class="fas fa-keyboard neon-yellow-text"></i><span>Campo de Resposta</span></div>
-                     <div class="draggable" draggable="true" data-component-type="cta-button"><i class="fas fa-mouse-pointer neon-yellow-text"></i><span>Botão (CTA)</span></div>
-                     <div class="draggable" draggable="true" data-component-type="delay"><i class="fas fa-clock neon-yellow-text"></i><span>Esperar (Delay)</span></div>
-                </div>
-            </div>
-        </aside>
-
-        <main class="col-span-12 md:col-span-9 lg:col-span-5 relative border-r border-border-color overflow-hidden">
-            <div id="flow-canvas" class="w-full h-full">
-                <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;"></div>
-            </div>
-            <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
-                <button id="zoom-in-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-plus"></i></button>
-                <button id="zoom-out-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-minus"></i></button>
-                <button id="reset-view-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-expand"></i></button>
-            </div>
-        </main>
-
-        <aside class="hidden lg:flex col-span-4 bg-secondary p-4 flex-col">
-            <div class="flex justify-between items-center mb-4">
-                 <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
-                 <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
-            </div>
-            <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
-                 <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
-            </div>
-        </aside>
     </div>
 
     <div id="edit-modal" class="modal-backdrop hidden">
@@ -229,6 +276,60 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- LÓGICA DE LOGIN E LOGOUT ---
+        const loginOverlay = document.getElementById('login-overlay');
+        const loginBox = document.getElementById('login-box');
+        const loginForm = document.getElementById('login-form');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const errorMessage = document.getElementById('error-message');
+        const appWrapper = document.getElementById('app-wrapper');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+
+            if (username === 'admin' && password === 'admin123') {
+                errorMessage.classList.add('hidden');
+                loginOverlay.classList.add('opacity-0');
+                
+                setTimeout(() => {
+                    loginOverlay.classList.add('hidden');
+                    appWrapper.classList.remove('hidden');
+                    appWrapper.classList.add('flex');
+                }, 500);
+
+            } else {
+                errorMessage.classList.remove('hidden');
+                passwordInput.value = '';
+                loginBox.classList.add('animate-shake');
+                
+                setTimeout(() => {
+                    loginBox.classList.remove('animate-shake');
+                }, 500);
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            // Esconde a aplicação
+            appWrapper.classList.add('hidden');
+            appWrapper.classList.remove('flex');
+            
+            // Limpa o formulário de login
+            usernameInput.value = '';
+            passwordInput.value = '';
+            errorMessage.classList.add('hidden');
+            
+            // Mostra a tela de login
+            loginOverlay.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                 loginOverlay.classList.remove('opacity-0');
+            });
+        });
+
+        // --- LÓGICA DO CONSTRUTOR DE FUNIL ---
         const flowCanvas = document.getElementById('flow-canvas');
         const transformer = document.getElementById('flow-transformer');
         const modal = document.getElementById('edit-modal');
@@ -337,11 +438,11 @@
                 });
                 contentHTML += `</div>`;
             } else {
-                 let displayText = initialData.text || `Aguardar por ${initialData.delay} segundos`;
-                 if (['image-message', 'audio-message', 'video-message'].includes(type)) displayText = `URL: ${initialData.url || 'Não definida'}`;
-                 if (type === 'cta-button') displayText = `Botão: ${initialData.text}`;
-                 if (type === 'user-input') displayText = `Placeholder: ${initialData.placeholder}`;
-                 contentHTML = `<div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${displayText}</p></div>`;
+                let displayText = initialData.text || `Aguardar por ${initialData.delay} segundos`;
+                if (['image-message', 'audio-message', 'video-message'].includes(type)) displayText = `URL: ${initialData.url || 'Não definida'}`;
+                if (type === 'cta-button') displayText = `Botão: ${initialData.text}`;
+                if (type === 'user-input') displayText = `Placeholder: ${initialData.placeholder}`;
+                contentHTML = `<div class="p-3"><p class="component-text text-sm text-text-secondary truncate">${displayText}</p></div>`;
             }
 
             wrapper.innerHTML = `
@@ -426,10 +527,10 @@
 
         function createConnection(startConnector, endConnector) {
              const line = new LeaderLine(startConnector, endConnector, {
-                color: 'var(--accent-yellow)', size: 2, path: 'fluid',
-                startSocketGravity: 60, endSocketGravity: 60,
-                dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
-                endPlug: 'behind'
+                 color: 'var(--accent-yellow)', size: 2, path: 'fluid',
+                 startSocketGravity: 60, endSocketGravity: 60,
+                 dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
+                 endPlug: 'behind'
             });
             connections.push({ 
                 line, 
@@ -519,10 +620,10 @@
             
             if (hasVariableButton) {
                 formHTML += `<div class="mt-2 flex flex-wrap gap-2">
-                                <button type="button" data-variable="{{nome}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{nome}}</button>
-                                <button type="button" data-variable="{{saudacao}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{saudacao}}</button>
-                                <button type="button" data-variable="{{dia_semana}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{dia_semana}}</button>
-                             </div>`;
+                                    <button type="button" data-variable="{{nome}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{nome}}</button>
+                                    <button type="button" data-variable="{{saudacao}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{saudacao}}</button>
+                                    <button type="button" data-variable="{{dia_semana}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{dia_semana}}</button>
+                                 </div>`;
             }
 
             modalBody.innerHTML = formHTML;
@@ -618,15 +719,15 @@
                 case 'audio-message':
                      const audioUrl = element.dataset.url || 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; // Default silent audio
                      wrapper.innerHTML = `<div class="audio-player-container">
-                            <img src="${profilePicUrl}" onerror="this.src='https://placehold.co/40x40/777/FFFFFF?text=??'">
-                            <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-                            <div class="progress-bar-container"><div class="progress-bar"></div></div>
-                            <div class="time-info">
-                                <span class="current-time">0:00</span>
-                                <span class="timestamp">${time}</span>
-                            </div>
-                            <audio class="hidden-audio" src="${audioUrl}"></audio>
-                        </div>`;
+                                <img src="${profilePicUrl}" onerror="this.src='https://placehold.co/40x40/777/FFFFFF?text=??'">
+                                <button class="play-pause-btn"><i class="fas fa-play"></i></button>
+                                <div class="progress-bar-container"><div class="progress-bar"></div></div>
+                                <div class="time-info">
+                                    <span class="current-time">0:00</span>
+                                    <span class="timestamp">${time}</span>
+                                </div>
+                                <audio class="hidden-audio" src="${audioUrl}"></audio>
+                            </div>`;
                     break;
                 case 'video-message':
                     const videoId = element.dataset.url.split('v=')[1]?.split('&')[0] || element.dataset.url.split('/').pop();
@@ -643,17 +744,17 @@
                     break;
                 case 'user-input':
                     wrapper.innerHTML = `<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
-                        <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
-                    </div>`;
+                                <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
+                            </div>`;
                     break;
                 case 'sent-message':
                 case 'ask-question':
                     wrapper.style.alignItems = 'flex-start';
                     wrapper.innerHTML = `<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                        ${textContent}
-                        <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
-                    </div>`;
+                                ${textContent}
+                                <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                            </div>`;
                     if (type === 'ask-question') {
                         const btnContainer = document.createElement('div');
                         btnContainer.style.cssText = "align-self: flex-start; display: flex; flex-wrap: wrap; gap: 10px; padding: 5px 0 10px 0;";
@@ -699,7 +800,7 @@
 
             if (allComponents.length === 0) return;
             if (connections.length === 0 && allComponents.length > 1) {
-                alert("O fluxo não está conectado. Por favor, conecte os componentes para testar.");
+                console.warn("O fluxo não está conectado.");
                 return;
             }
 
@@ -749,7 +850,7 @@
             const startNodes = allComponents.filter(comp => !endNodeIds.has(comp.id));
 
             if (startNodes.length === 0 && allComponents.length > 0) {
-                alert("Nenhum componente de início encontrado. Um fluxo deve ter pelo menos um componente sem conexões de entrada.");
+                console.error("Nenhum componente de início encontrado.");
                 testBtn.disabled = false;
                 testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
                 return;
@@ -942,7 +1043,6 @@
                     loadFlow(flowData);
                 } catch (error) {
                     console.error("Erro ao ler o arquivo JSON:", error);
-                    alert("Arquivo de importação inválido. Por favor, selecione um arquivo JSON válido.");
                 }
             };
             reader.readAsText(file);

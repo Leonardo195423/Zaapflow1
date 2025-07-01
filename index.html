@@ -256,9 +256,9 @@
                      <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
                 </div>
-                <!-- BUG FIX: Added overflow-y-auto and min-h-0 for scrolling -->
-                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 overflow-y-auto min-h-0">
-                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
+                <!-- CORREÇÃO DE ROLAGEM: A rolagem agora é controlada pelo #preview-chat-body -->
+                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 min-h-0">
+                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner flex flex-col"></div>
                 </div>
             </aside>
         </div>

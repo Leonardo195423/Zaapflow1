@@ -14,6 +14,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Biblioteca para as linhas de conexão -->
     <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js"></script>
+    <!-- Biblioteca para criar arquivos ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
         :root {
@@ -28,6 +30,7 @@
             background-color: var(--bg-main);
             background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
             background-size: 20px 20px;
+            cursor: grab;
         }
         #flow-canvas.drag-over { background-color: rgba(255, 210, 63, 0.05); }
         #flow-canvas:active { cursor: grabbing; }
@@ -48,6 +51,10 @@
             position: absolute; cursor: grab; z-index: 10; width: 280px;
             background-color: var(--bg-secondary); border: 1px solid var(--border-color);
             border-radius: 8px; box-shadow: 0 10px 20px var(--shadow-color);
+            transition: box-shadow 0.2s ease;
+        }
+        .canvas-component:hover {
+            box-shadow: 0 10px 25px var(--shadow-color), 0 0 10px var(--accent-yellow-glow);
         }
         .component-header {
             background-color: var(--bg-tertiary); border-top-left-radius: 7px;
@@ -145,10 +152,30 @@
         .animate-shake {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
+
+        /* Toast Notification */
+        #toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translate(-50%, 200%);
+            background-color: var(--accent-yellow);
+            color: var(--bg-main);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 100;
+            transition: transform 0.5s ease-in-out;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        #toast-notification.show {
+            transform: translate(-50%, 0);
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
     
+    <!-- Tela de Login -->
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-500">
         <div id="login-box" class="w-full max-w-sm p-8 space-y-6 bg-bg-secondary/80 rounded-2xl shadow-2xl shadow-black/50 backdrop-blur-md border border-border-color">
             <div class="flex justify-center items-center gap-3">
@@ -175,6 +202,7 @@
         </div>
     </div>
 
+    <!-- Conteúdo Principal da Aplicação -->
     <div id="app-wrapper" class="h-full flex flex-col overflow-hidden hidden">
         <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color flex-shrink-0">
             <div class="flex items-center gap-3">
@@ -182,17 +210,19 @@
                 <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
             </div>
             <div class="hidden md:block text-lg font-semibold">Construtor de Funil</div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
                 <button id="import-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-upload"></i> Importar</button>
                 <button id="export-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-download"></i> Exportar</button>
-                <button id="export-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-code"></i> Exportar HTML</button>
+                <button id="copy-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-copy"></i> Copiar HTML</button>
+                <button id="download-zip-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-file-zipper"></i> Baixar .zip p/ Netlify</button>
                 <input type="file" id="import-file-input" class="hidden" accept=".json">
                 <button id="logout-btn" class="ml-4 px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white transition-colors"><i class="fas fa-sign-out-alt"></i> Deslogar</button>
             </div>
         </header>
 
         <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            <aside class="w-full lg:w-1/4 bg-secondary p-4 overflow-y-auto border-r border-border-color flex-shrink-0 lg:flex-shrink">
+            <!-- Painel Esquerdo: Configurações e Componentes -->
+            <aside class="w-full lg:w-72 bg-secondary p-4 overflow-y-auto border-r border-border-color flex-shrink-0">
                 <div class="mb-6">
                     <h3 class="font-semibold text-text-secondary mb-3">CONFIGURAÇÕES</h3>
                     <div class="space-y-3">
@@ -236,18 +266,20 @@
                 </div>
             </aside>
 
+            <!-- Área Central: Canvas do Funil -->
             <main class="flex-1 relative border-r border-border-color overflow-hidden">
                 <div id="flow-canvas" class="w-full h-full">
                     <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;"></div>
                 </div>
                 <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
-                    <button id="zoom-in-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-plus"></i></button>
-                    <button id="zoom-out-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-minus"></i></button>
-                    <button id="reset-view-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg"><i class="fas fa-expand"></i></button>
+                    <button id="zoom-in-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg hover:bg-opacity-80"><i class="fas fa-plus"></i></button>
+                    <button id="zoom-out-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg hover:bg-opacity-80"><i class="fas fa-minus"></i></button>
+                    <button id="reset-view-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg hover:bg-opacity-80"><i class="fas fa-expand"></i></button>
                 </div>
             </main>
 
-            <aside class="w-full lg:w-1/3 bg-secondary p-4 flex flex-col flex-shrink-0 lg:flex-shrink">
+            <!-- Painel Direito: Prévia ao Vivo -->
+            <aside class="w-full lg:w-1/3 bg-secondary p-4 flex flex-col flex-shrink-0">
                 <div class="flex justify-between items-center mb-4 flex-shrink-0">
                      <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
@@ -255,10 +287,14 @@
                 <div id="preview-container" class="flex-1 bg-main rounded-lg p-2 flex flex-col min-h-0">
                      <div id="preview-chat-container" class="w-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col flex-1"></div>
                 </div>
+                <a href="https://www.netlify.com" target="_blank" class="mt-4 w-full text-center px-4 py-2 rounded-md text-white font-semibold bg-blue-600 hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-rocket mr-2"></i>Publicar Funil
+                </a>
             </aside>
         </div>
     </div>
 
+    <!-- Modal de Edição -->
     <div id="edit-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title" class="text-lg font-bold mb-4">Editar Componente</h3>
@@ -269,6 +305,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Notificação Toast -->
+    <div id="toast-notification">Mensagem aqui</div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -295,6 +334,7 @@
             const username = usernameInput.value;
             const password = passwordInput.value;
 
+            // Substitua por sua lógica de autenticação real
             if (username === 'admin' && password === 'admin123') {
                 localStorage.setItem('isLoggedIn', 'true');
                 errorMessage.classList.add('hidden');
@@ -336,6 +376,7 @@
         const flowCanvas = document.getElementById('flow-canvas');
         const transformer = document.getElementById('flow-transformer');
         const modal = document.getElementById('edit-modal');
+        const toast = document.getElementById('toast-notification');
         
         let connections = [];
         let currentDrawingLine = null;
@@ -358,6 +399,14 @@
             'video-message': { name: 'Vídeo do YouTube', icon: 'fab fa-youtube', url: '' },
             'cta-button': { name: 'Botão (CTA)', icon: 'fa-mouse-pointer', text: 'Clique Aqui', url: '#', color: '#FFD23F', neon: 'true' },
             'user-input': { name: 'Campo de Resposta', icon: 'fa-keyboard', placeholder: 'Digite sua resposta...' },
+        };
+
+        const showToast = (message) => {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
         };
 
         const applyTransform = () => {
@@ -388,7 +437,7 @@
             }
         });
         window.addEventListener('mousemove', e => { if (isPanning) { panX = e.clientX - panStartX; panY = e.clientY - panStartY; applyTransform(); } });
-        window.addEventListener('mouseup', () => { isPanning = false; flowCanvas.style.cursor = 'default'; });
+        window.addEventListener('mouseup', () => { isPanning = false; flowCanvas.style.cursor = 'grab'; });
 
         document.getElementById('zoom-in-btn').onclick = () => { zoom = Math.min(2, zoom + 0.1); applyTransform(); };
         document.getElementById('zoom-out-btn').onclick = () => { zoom = Math.max(0.2, zoom - 0.1); applyTransform(); };
@@ -472,7 +521,7 @@
         function makeDraggable(element) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
             element.onmousedown = e => {
-                if (e.target.closest('.connector-point, .component-controls')) return;
+                if (e.target.closest('.connector-point, .component-controls, input, textarea, button')) return;
                 e.preventDefault();
                 pos3 = e.clientX; pos4 = e.clientY;
                 document.onmouseup = closeDragElement; document.onmousemove = elementDrag;
@@ -575,6 +624,7 @@
             chatName = document.getElementById('chat-name-input').value;
             profilePicUrl = document.getElementById('chat-photo-input').value;
             updatePreview();
+            showToast('Configurações salvas!');
         };
 
         function insertTextAtCursor(textarea, text) {
@@ -747,17 +797,17 @@
                     break;
                 case 'user-input':
                     wrapper.innerHTML = `<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
-                                 <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                                 <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
-                             </div>`;
+                                     <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                     <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
+                                 </div>`;
                     break;
                 case 'sent-message':
                 case 'ask-question':
                     wrapper.style.alignItems = 'flex-start';
                     wrapper.innerHTML = `<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                                     ${textContent}
-                                     <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
-                                 </div>`;
+                                         ${textContent}
+                                         <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                                     </div>`;
                     if (type === 'ask-question') {
                         const btnContainer = document.createElement('div');
                         btnContainer.style.cssText = "align-self: flex-start; display: flex; flex-wrap: wrap; gap: 10px; padding: 5px 0 10px 0;";
@@ -802,10 +852,6 @@
             const allText = allComponents.map(c => c.dataset.text || '').join(' ');
 
             if (allComponents.length === 0) return;
-            if (connections.length === 0 && allComponents.length > 1) {
-                console.warn("O fluxo não está conectado.");
-                return;
-            }
 
             testBtn.disabled = true;
             testBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Testando...`;
@@ -853,10 +899,14 @@
             const startNodes = allComponents.filter(comp => !endNodeIds.has(comp.id));
 
             if (startNodes.length === 0 && allComponents.length > 0) {
-                console.error("Nenhum componente de início encontrado.");
-                testBtn.disabled = false;
-                testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
-                return;
+                console.error("Nenhum componente de início encontrado. O fluxo pode estar em um loop.");
+                // Se não houver nós de início, mas houver componentes, pegue o primeiro da lista
+                if(allComponents.length > 0) startNodes.push(allComponents[0]);
+                else {
+                    testBtn.disabled = false;
+                    testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
+                    return;
+                }
             }
 
             const executeComponent = async (component) => {
@@ -988,17 +1038,14 @@
 
         document.getElementById('test-flow-btn').addEventListener('click', runFlowTest);
         
-        function exportFlow() {
-            const componentsData = [];
-            transformer.querySelectorAll('.canvas-component').forEach(comp => {
-                componentsData.push({
-                    id: comp.id,
-                    type: comp.dataset.componentType,
-                    left: comp.style.left,
-                    top: comp.style.top,
-                    dataset: { ...comp.dataset }
-                });
-            });
+        function getFlowData() {
+            const componentsData = Array.from(transformer.querySelectorAll('.canvas-component')).map(comp => ({
+                id: comp.id,
+                type: comp.dataset.componentType,
+                left: comp.style.left,
+                top: comp.style.top,
+                dataset: { ...comp.dataset }
+            }));
 
             const connectionsData = connections.map(conn => ({
                 startId: conn.start.id,
@@ -1013,12 +1060,15 @@
                 customScripts: document.getElementById('custom-scripts-input').value
             };
 
-            const flowData = {
+            return {
                 settings: settingsData,
                 components: componentsData,
                 connections: connectionsData
             };
+        }
 
+        function exportFlow() {
+            const flowData = getFlowData();
             const dataStr = JSON.stringify(flowData, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
@@ -1044,8 +1094,10 @@
                 try {
                     const flowData = JSON.parse(event.target.result);
                     loadFlow(flowData);
+                    showToast('Funil importado com sucesso!');
                 } catch (error) {
                     console.error("Erro ao ler o arquivo JSON:", error);
+                    showToast('Erro ao importar o arquivo.');
                 }
             };
             reader.readAsText(file);
@@ -1092,24 +1144,8 @@
             applyTransform();
         }
 
-        function exportHTML() {
-            const flowData = {
-                settings: {
-                    chatName: document.getElementById('chat-name-input').value,
-                    profilePicUrl: document.getElementById('chat-photo-input').value,
-                    pixelId: document.getElementById('pixel-id-input').value,
-                    customScripts: document.getElementById('custom-scripts-input').value
-                },
-                components: Array.from(transformer.querySelectorAll('.canvas-component')).map(comp => ({
-                    id: comp.id,
-                    dataset: { ...comp.dataset }
-                })),
-                connections: connections.map(conn => ({
-                    startId: conn.start.id,
-                    endId: conn.end.id,
-                    startIndex: conn.startIndex
-                }))
-            };
+        function generateStandaloneHTML() {
+            const flowData = getFlowData();
             
             const scriptToEmbed = `
                 const flowData = ${JSON.stringify(flowData, null, 2)};
@@ -1117,7 +1153,7 @@
                 // --- Start of Embedded Functions ---
                 ${getLiveVariables.toString()}
                 ${setupAudioPlayer.toString()}
-                ${createPreviewComponent.toString()}
+                ${createPreviewComponent.toString().replace(/onerror="[^"]*"/g, 'onerror="this.src=\'https://placehold.co/45x45/075E54/FFFFFF?text=??\'"')}
                 ${createSentMessagePreview.toString()}
                 
                 // This is a simplified, self-contained version of runFlowTest
@@ -1157,7 +1193,11 @@
                     
                     const componentMap = new Map(flowData.components.map(c => [c.id, c]));
                     const endNodeIds = new Set(flowData.connections.map(conn => conn.endId));
-                    const startNodes = flowData.components.filter(c => !endNodeIds.has(c.id));
+                    let startNodes = flowData.components.filter(c => !endNodeIds.has(c.id));
+
+                    if (startNodes.length === 0 && flowData.components.length > 0) {
+                        startNodes.push(flowData.components[0]);
+                    }
 
                     const executeComponent = async (component) => {
                         if (!component) return;
@@ -1257,8 +1297,8 @@
 
             const customScripts = flowData.settings.customScripts || '';
 
-            // MUDANÇA: CSS ajustado para uma experiência de tela cheia no celular
-            const htmlContent = `
+            // CORREÇÃO: Movendo os estilos essenciais para serem inline
+            return `
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -1269,35 +1309,11 @@
     ${pixelScript}
     ${customScripts}
     <style>
+        /* Estilos que não são críticos para o layout principal podem permanecer aqui */
         html, body {
-            height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            background-color: #e5ddd5;
-        }
-        #preview-chat-container {
-            background-color: #e5ddd5;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            width: 100%;
-            height: 100%;
-            max-width: none;
-            max-height: none;
-            margin: 0;
-            border-radius: 0;
-            box-shadow: none;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        #preview-chat-body {
-            flex-grow: 1;
-            padding: 20px 10px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
         }
         #preview-chat-body::-webkit-scrollbar { width: 6px; }
         #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
@@ -1313,13 +1329,16 @@
     </style>
 </head>
 <body>
-    <div id="preview-chat-container"></div>
+    <div id="preview-chat-container" style="display: flex; flex-direction: column; width: 100%; height: 100vh; overflow: hidden; background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');"></div>
     <script>
         ${scriptToEmbed}
     <\/script>
 </body>
 </html>`;
-
+        }
+        
+        function exportHTML() {
+            const htmlContent = generateStandaloneHTML();
             const blob = new Blob([htmlContent.trim()], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1331,11 +1350,44 @@
             URL.revokeObjectURL(url);
         }
 
+        function copyHTML() {
+            const htmlContent = generateStandaloneHTML();
+            const textarea = document.createElement('textarea');
+            textarea.value = htmlContent;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('HTML copiado para a área de transferência!');
+            } catch (err) {
+                showToast('Erro ao copiar o HTML.');
+                console.error('Falha ao copiar HTML: ', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function downloadForNetlify() {
+            const htmlContent = generateStandaloneHTML();
+            const zip = new JSZip();
+            zip.file("index.html", htmlContent);
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'zaapflow-project.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Projeto .zip pronto para Netlify!');
+            });
+        }
 
         document.getElementById('export-btn').addEventListener('click', exportFlow);
         document.getElementById('import-btn').addEventListener('click', triggerImport);
         document.getElementById('import-file-input').addEventListener('change', handleFileImport);
-        document.getElementById('export-html-btn').addEventListener('click', exportHTML);
+        document.getElementById('copy-html-btn').addEventListener('click', copyHTML);
+        document.getElementById('download-zip-btn').addEventListener('click', downloadForNetlify);
 
         updatePreview();
     });

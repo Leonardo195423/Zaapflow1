@@ -228,11 +228,11 @@
                     <div class="space-y-3">
                         <div>
                             <label for="chat-name-input" class="text-sm text-text-secondary">Nome do Chat</label>
-                            <input type="text" id="chat-name-input" value="TOP FLIX" class="w-full mt-1 p-2 rounded-md text-sm">
+                            <input type="text" id="chat-name-input" value="ZaapFlow" class="w-full mt-1 p-2 rounded-md text-sm">
                         </div>
                         <div>
                             <label for="chat-photo-input" class="text-sm text-text-secondary">URL da Foto de Perfil</label>
-                            <input type="text" id="chat-photo-input" value="https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png" class="w-full mt-1 p-2 rounded-md text-sm">
+                            <input type="text" id="chat-photo-input" value="https://i.ibb.co/fzj6mf9K/Chat-GPT-Image-1-de-jul-de-2025-16-45-48.png" class="w-full mt-1 p-2 rounded-md text-sm">
                         </div>
                         <div>
                             <label for="pixel-id-input" class="text-sm text-text-secondary">ID do Pixel do Facebook</label>
@@ -387,8 +387,8 @@
         let isPanning = false;
         let panStartX, panStartY;
 
-        let chatName = 'TOP FLIX';
-        let profilePicUrl = 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
+        let chatName = 'ZaapFlow';
+        let profilePicUrl = 'https://i.ibb.co/fzj6mf9K/Chat-GPT-Image-1-de-jul-de-2025-16-45-48.png';
 
         const componentInfoMap = {
             'sent-message': { name: 'Mensagem Enviada', icon: 'fa-paper-plane', text: '{{saudacao}} {{nome}}, como posso ajudar?' },
@@ -792,7 +792,8 @@
                 case 'cta-button':
                     const color = element.dataset.color;
                     const neon = element.dataset.neon === 'true' ? `box-shadow: 0 0 10px ${color}, 0 0 20px ${color}80;` : '';
-                    wrapper.innerHTML = `<div style="padding: 10px; align-self: center;"><a href="${element.dataset.url}" target="_blank" style="padding: 12px 24px; background-color: ${color}; color: #111; font-weight: bold; border-radius: 30px; text-decoration: none; ${neon}">${textContent}</a></div>`;
+                    // Adicionado evento de clique para o Pixel
+                    wrapper.innerHTML = `<div style="padding: 10px; align-self: center;"><a href="${element.dataset.url}" target="_blank" style="padding: 12px 24px; background-color: ${color}; color: #111; font-weight: bold; border-radius: 30px; text-decoration: none; ${neon}" onclick="if(typeof fbq === 'function'){fbq('track', 'Contact');}">${textContent}</a></div>`;
                     wrapper.style.alignItems = 'center';
                     break;
                 case 'user-input':
@@ -884,6 +885,8 @@
                         inputContainer.remove();
                         chatBody.appendChild(createSentMessagePreview(userText));
                         chatBody.scrollTop = chatBody.scrollHeight;
+                        // Dispara o evento de Lead
+                        if (typeof fbq === 'function') { fbq('track', 'Lead'); }
                         resolve(userText);
                     };
                     sendButton.onclick = handleSend;
@@ -900,7 +903,6 @@
 
             if (startNodes.length === 0 && allComponents.length > 0) {
                 console.error("Nenhum componente de início encontrado. O fluxo pode estar em um loop.");
-                // Se não houver nós de início, mas houver componentes, pegue o primeiro da lista
                 if(allComponents.length > 0) startNodes.push(allComponents[0]);
                 else {
                     testBtn.disabled = false;
@@ -948,6 +950,14 @@
                                 });
                                 e.target.style.backgroundColor = '#075E54'; e.target.style.color = 'white';
                                 
+                                // Dispara o evento personalizado de resposta
+                                if (typeof fbq === 'function') {
+                                    fbq('trackCustom', 'QuestionResponse', { 
+                                        question: component.dataset.text.substring(0, 100),
+                                        response: e.target.innerText.substring(0, 100)
+                                    });
+                                }
+
                                 setTimeout(() => {
                                     chatBody.scrollTop = chatBody.scrollHeight;
                                     resolve(e.target.dataset.buttonIndex)
@@ -969,6 +979,8 @@
                             inputContainer.remove();
                             chatBody.appendChild(createSentMessagePreview(userText));
                             chatBody.scrollTop = chatBody.scrollHeight;
+                            // Dispara o evento de Lead também para respostas de texto aberto
+                            if (typeof fbq === 'function') { fbq('track', 'Lead'); }
                             resolve();
                         };
                         sendButton.onclick = handleSend;
@@ -1110,8 +1122,8 @@
             connections = [];
 
             if (flowData.settings) {
-                document.getElementById('chat-name-input').value = flowData.settings.chatName || 'TOP FLIX';
-                document.getElementById('chat-photo-input').value = flowData.settings.profilePicUrl || 'https://i.ibb.co/zTTD7BJf/Ezbc8zz-X0-AQ5-F7p.png';
+                document.getElementById('chat-name-input').value = flowData.settings.chatName || 'ZaapFlow';
+                document.getElementById('chat-photo-input').value = flowData.settings.profilePicUrl || 'https://i.ibb.co/fzj6mf9K/Chat-GPT-Image-1-de-jul-de-2025-16-45-48.png';
                 document.getElementById('pixel-id-input').value = flowData.settings.pixelId || '';
                 document.getElementById('custom-scripts-input').value = flowData.settings.customScripts || '';
                 chatName = flowData.settings.chatName;
@@ -1150,13 +1162,13 @@
             const scriptToEmbed = `
                 const flowData = ${JSON.stringify(flowData, null, 2)};
                 
-                // --- Start of Embedded Functions ---
+                // --- Funções de ajuda ---
                 ${getLiveVariables.toString()}
                 ${setupAudioPlayer.toString()}
-                ${createPreviewComponent.toString().replace(/onerror="[^"]*"/g, 'onerror="this.src=\'https://placehold.co/45x45/075E54/FFFFFF?text=??\'"')}
+                ${createPreviewComponent.toString()}
                 ${createSentMessagePreview.toString()}
                 
-                // This is a simplified, self-contained version of runFlowTest
+                // --- Lógica principal do fluxo ---
                 async function runStandaloneFlow() {
                     const chatContainer = document.getElementById('preview-chat-container');
                     chatContainer.innerHTML = \`<div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;"><img src="\${flowData.settings.profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'"><div><div style="font-weight: bold;">\${flowData.settings.chatName}</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div></div><div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>\`;
@@ -1182,6 +1194,7 @@
                                 inputContainer.remove();
                                 chatBody.appendChild(createSentMessagePreview(userText));
                                 chatBody.scrollTop = chatBody.scrollHeight;
+                                if (typeof fbq === 'function') { fbq('track', 'Lead'); }
                                 resolve(userText);
                             };
                             sendButton.onclick = handleSend;
@@ -1230,6 +1243,12 @@
                                      button.addEventListener('click', (e) => {
                                          chatBody.appendChild(createSentMessagePreview(e.target.innerText));
                                          buttons.forEach(btn => { btn.disabled = true; btn.style.cursor = 'not-allowed'; });
+                                         if (typeof fbq === 'function') {
+                                             fbq('trackCustom', 'QuestionResponse', { 
+                                                 question: component.dataset.text.substring(0, 100),
+                                                 response: e.target.innerText.substring(0, 100)
+                                             });
+                                         }
                                          setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; resolve(e.target.dataset.buttonIndex) }, 500);
                                      }, { once: true });
                                  });
@@ -1247,6 +1266,7 @@
                                     inputContainer.remove();
                                     chatBody.appendChild(createSentMessagePreview(userText));
                                     chatBody.scrollTop = chatBody.scrollHeight;
+                                    if (typeof fbq === 'function') { fbq('track', 'Lead'); }
                                     resolve();
                                 };
                                 sendButton.onclick = handleSend;
@@ -1287,7 +1307,6 @@
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '${pixelId}');
     fbq('track', 'PageView');
-    fbq('track', 'ViewContent');
     <\/script>
     <noscript><img height="1" width="1" style="display:none"
     src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1"
@@ -1297,19 +1316,17 @@
 
             const customScripts = flowData.settings.customScripts || '';
 
-            // CORREÇÃO: Movendo os estilos essenciais para serem inline
             return `
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prévia do Funil - ${flowData.settings.chatName}</title>
+    <title>${flowData.settings.chatName}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     ${pixelScript}
     ${customScripts}
     <style>
-        /* Estilos que não são críticos para o layout principal podem permanecer aqui */
         html, body {
             margin: 0;
             padding: 0;

@@ -588,6 +588,18 @@
         
         modal.querySelector('#modal-cancel').onclick = () => modal.classList.add('hidden');
 
+        function createSentMessagePreview(text) {
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
+            wrapper.innerHTML = `
+                <div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                    ${text}
+                    <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                </div>`;
+            return wrapper;
+        }
+
         function createPreviewComponent(element, variables = {}, profilePicUrl) {
             const type = element.dataset.componentType;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -635,10 +647,10 @@
                         <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>`;
                     break;
-                default:
-                    const isSent = type === 'sent-message';
-                    wrapper.style.alignItems = isSent ? 'flex-end' : 'flex-start';
-                    wrapper.innerHTML = `<div style="max-width: 80%; background-color: ${isSent ? '#dcf8c6' : '#fff'}; padding: 10px 15px; border-radius: 10px; ${isSent ? 'border-top-right-radius: 0;' : 'border-top-left-radius: 0;'} box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
+                case 'sent-message':
+                case 'ask-question':
+                    wrapper.style.alignItems = 'flex-start';
+                    wrapper.innerHTML = `<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
                         ${textContent}
                         <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
                     </div>`;
@@ -654,6 +666,7 @@
                         });
                         wrapper.appendChild(btnContainer);
                     }
+                    break;
             }
             return wrapper;
         }
@@ -719,10 +732,7 @@
                     const handleSend = () => {
                         const userText = inputField.value || "Visitante";
                         inputContainer.remove();
-                        const sentMessage = document.createElement('div');
-                        sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
-                        sentMessage.innerHTML = `<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">${userText}</div>`;
-                        chatBody.appendChild(sentMessage);
+                        chatBody.appendChild(createSentMessagePreview(userText));
                         chatBody.scrollTop = chatBody.scrollHeight;
                         resolve(userText);
                     };
@@ -778,14 +788,7 @@
                         const buttons = chatBody.querySelectorAll('button[data-button-index]');
                         buttons.forEach(button => {
                             button.addEventListener('click', (e) => {
-                                const userText = e.target.innerText;
-                                const sentMessage = document.createElement('div');
-                                sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
-                                sentMessage.innerHTML = `<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                                    ${userText}<span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                </div>`;
-                                chatBody.appendChild(sentMessage);
-                                
+                                chatBody.appendChild(createSentMessagePreview(e.target.innerText));
                                 buttons.forEach(btn => {
                                     btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.backgroundColor = '#f0f0f0'; btn.style.borderColor = '#ccc'; btn.style.color = '#aaa';
                                 });
@@ -810,12 +813,7 @@
                         const handleSend = () => {
                             const userText = inputField.value || "Resposta simulada";
                             inputContainer.remove();
-                            const sentMessage = document.createElement('div');
-                            sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
-                            sentMessage.innerHTML = `<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                                ${userText}<span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>`;
-                            chatBody.appendChild(sentMessage);
+                            chatBody.appendChild(createSentMessagePreview(userText));
                             chatBody.scrollTop = chatBody.scrollHeight;
                             resolve();
                         };
@@ -1009,19 +1007,20 @@
                     startIndex: conn.startIndex
                 }))
             };
-
+            
             const scriptToEmbed = `
                 const flowData = ${JSON.stringify(flowData, null, 2)};
                 
-                // Self-contained functions for the exported HTML.
+                // --- Start of Embedded Functions ---
                 ${getLiveVariables.toString()}
                 ${setupAudioPlayer.toString()}
                 ${createPreviewComponent.toString()}
+                ${createSentMessagePreview.toString()}
                 
                 // This is a simplified, self-contained version of runFlowTest
                 async function runStandaloneFlow() {
                     const chatContainer = document.getElementById('preview-chat-container');
-                    chatContainer.innerHTML = \`<div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;"><img src="\${flowData.settings.profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'"><div style="font-weight: bold;">\${flowData.settings.chatName}</div></div><div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>\`;
+                    chatContainer.innerHTML = \`<div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;"><img src="\${flowData.settings.profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'"><div><div style="font-weight: bold;">\${flowData.settings.chatName}</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div></div><div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>\`;
                     const chatBody = document.getElementById('preview-chat-body');
                     const profilePicUrl = flowData.settings.profilePicUrl;
                     
@@ -1042,10 +1041,7 @@
                             const handleSend = () => {
                                 const userText = inputField.value || "Visitante";
                                 inputContainer.remove();
-                                const sentMessage = document.createElement('div');
-                                sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
-                                sentMessage.innerHTML = \`<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">\${userText}</div>\`;
-                                chatBody.appendChild(sentMessage);
+                                chatBody.appendChild(createSentMessagePreview(userText));
                                 chatBody.scrollTop = chatBody.scrollHeight;
                                 resolve(userText);
                             };
@@ -1089,11 +1085,7 @@
                                 const buttons = chatBody.querySelectorAll('button[data-button-index]');
                                 buttons.forEach(button => {
                                     button.addEventListener('click', (e) => {
-                                        const userText = e.target.innerText;
-                                        const sentMessage = document.createElement('div');
-                                        sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
-                                        sentMessage.innerHTML = \`<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">\${userText}</div>\`;
-                                        chatBody.appendChild(sentMessage);
+                                        chatBody.appendChild(createSentMessagePreview(e.target.innerText));
                                         buttons.forEach(btn => { btn.disabled = true; btn.style.cursor = 'not-allowed'; });
                                         setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; resolve(e.target.dataset.buttonIndex) }, 500);
                                     }, { once: true });
@@ -1110,10 +1102,7 @@
                                 const handleSend = () => {
                                     const userText = inputField.value || "Resposta simulada";
                                     inputContainer.remove();
-                                    const sentMessage = document.createElement('div');
-                                    sentMessage.style.cssText = "display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 12px;";
-                                    sentMessage.innerHTML = \`<div style="max-width: 80%; background-color: #dcf8c6; padding: 10px 15px; border-radius: 10px; border-top-right-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">\${userText}</div>\`;
-                                    chatBody.appendChild(sentMessage);
+                                    chatBody.appendChild(createSentMessagePreview(userText));
                                     chatBody.scrollTop = chatBody.scrollHeight;
                                     resolve();
                                 };

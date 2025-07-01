@@ -186,7 +186,6 @@
                 <button id="import-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-upload"></i> Importar</button>
                 <button id="export-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-download"></i> Exportar</button>
                 <button id="export-html-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fas fa-code"></i> Exportar HTML</button>
-                <button id="export-wp-btn" class="px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-tertiary hover:bg-opacity-70"><i class="fab fa-wordpress"></i> Exportar WP</button>
                 <input type="file" id="import-file-input" class="hidden" accept=".json">
                 <button id="logout-btn" class="ml-4 px-3 py-1.5 rounded-md text-sm flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white transition-colors"><i class="fas fa-sign-out-alt"></i> Deslogar</button>
             </div>
@@ -1093,84 +1092,6 @@
             applyTransform();
         }
 
-        // MUDANÇA: Função de exportação para WordPress totalmente refeita
-        function exportWpJson() {
-            const allComponents = Array.from(transformer.querySelectorAll('.canvas-component'));
-            if (allComponents.length === 0) {
-                alert("Não há nada para exportar.");
-                return;
-            }
-
-            const endNodeIds = new Set(connections.map(conn => conn.end.id));
-            const startNode = allComponents.find(comp => !endNodeIds.has(comp.id));
-
-            if (!startNode) {
-                alert("Não foi possível encontrar um nó de início para o funil. Verifique se há um componente sem nenhuma conexão de entrada.");
-                return;
-            }
-
-            const steps = {};
-            allComponents.forEach(comp => {
-                const type = comp.dataset.componentType;
-                const data = { ...comp.dataset };
-                const stepData = {};
-
-                // Limpa dados irrelevantes do dataset
-                delete data.componentType;
-                delete data.name;
-                delete data.icon;
-                
-                // Copia os dados relevantes para o objeto do passo
-                for (const key in data) {
-                    stepData[key] = data[key];
-                }
-
-                const step = {
-                    type: type,
-                    data: stepData
-                };
-
-                const outgoingConnections = connections.filter(c => c.start.id === comp.id);
-
-                if (type === 'ask-question') {
-                    step.data.buttons = (data.buttons || '').split(';').map((label, index) => {
-                        const connection = outgoingConnections.find(c => c.startIndex == index);
-                        return {
-                            label: label,
-                            next_step: connection ? connection.end.id : null
-                        };
-                    });
-                     delete step.data.buttons; // remove a string original
-                } else {
-                    if (outgoingConnections.length > 0) {
-                        step.next_step = outgoingConnections[0].end.id;
-                    }
-                }
-                
-                steps[comp.id] = step;
-            });
-
-            const wpFlowData = {
-                chatSettings: {
-                    chatName: document.getElementById('chat-name-input').value,
-                    profilePicUrl: document.getElementById('chat-photo-input').value,
-                },
-                startNodeId: startNode.id,
-                steps: steps
-            };
-
-            const dataStr = JSON.stringify(wpFlowData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'funil-wordpress.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
         function exportHTML() {
             const flowData = {
                 settings: {
@@ -1336,6 +1257,7 @@
 
             const customScripts = flowData.settings.customScripts || '';
 
+            // MUDANÇA: CSS ajustado para uma experiência de tela cheia no celular
             const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -1414,7 +1336,6 @@
         document.getElementById('import-btn').addEventListener('click', triggerImport);
         document.getElementById('import-file-input').addEventListener('change', handleFileImport);
         document.getElementById('export-html-btn').addEventListener('click', exportHTML);
-        document.getElementById('export-wp-btn').addEventListener('click', exportWpJson);
 
         updatePreview();
     });

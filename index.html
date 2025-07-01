@@ -588,7 +588,7 @@
         
         modal.querySelector('#modal-cancel').onclick = () => modal.classList.add('hidden');
 
-        function createPreviewComponent(element, variables = {}) {
+        function createPreviewComponent(element, variables = {}, profilePicUrl) {
             const type = element.dataset.componentType;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const wrapper = document.createElement('div');
@@ -752,19 +752,19 @@
                 let nextComponentId = null;
                 
                 if (type === 'delay') {
-                    const indicator = createPreviewComponent(component, liveVariables);
+                    const indicator = createPreviewComponent(component, liveVariables, profilePicUrl);
                     chatBody.appendChild(indicator);
                     chatBody.scrollTop = chatBody.scrollHeight;
                     await delay(component.dataset.delay * 1000);
                     indicator.remove();
                 } else {
-                    const indicator = createPreviewComponent({dataset: {componentType: 'delay'}}, liveVariables);
+                    const indicator = createPreviewComponent({dataset: {componentType: 'delay'}}, liveVariables, profilePicUrl);
                     chatBody.appendChild(indicator);
                     chatBody.scrollTop = chatBody.scrollHeight;
                     await delay(800);
                     indicator.remove();
 
-                    const previewElement = createPreviewComponent(component, liveVariables);
+                    const previewElement = createPreviewComponent(component, liveVariables, profilePicUrl);
                     chatBody.appendChild(previewElement);
                     if(previewElement.querySelector('.audio-player-container')) {
                         setupAudioPlayer(previewElement);
@@ -1014,7 +1014,6 @@
                 const flowData = ${JSON.stringify(flowData, null, 2)};
                 
                 // Self-contained functions for the exported HTML.
-                // NOTE: These are copied from the main script.
                 ${getLiveVariables.toString()}
                 ${setupAudioPlayer.toString()}
                 ${createPreviewComponent.toString()}
@@ -1022,7 +1021,7 @@
                 // This is a simplified, self-contained version of runFlowTest
                 async function runStandaloneFlow() {
                     const chatContainer = document.getElementById('preview-chat-container');
-                    chatContainer.innerHTML = \`<div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;"><img src="\${flowData.settings.profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'"><div class="font-bold">\${flowData.settings.chatName}</div></div><div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>\`;
+                    chatContainer.innerHTML = \`<div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;"><img src="\${flowData.settings.profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'"><div style="font-weight: bold;">\${flowData.settings.chatName}</div></div><div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>\`;
                     const chatBody = document.getElementById('preview-chat-body');
                     const profilePicUrl = flowData.settings.profilePicUrl;
                     
@@ -1067,18 +1066,18 @@
                         let nextComponentId = null;
                         
                         if (type === 'delay') {
-                            const indicator = createPreviewComponent(component, liveVariables);
+                            const indicator = createPreviewComponent(component, liveVariables, profilePicUrl);
                             chatBody.appendChild(indicator);
                             chatBody.scrollTop = chatBody.scrollHeight;
                             await delay(component.dataset.delay * 1000);
                             indicator.remove();
                         } else {
-                            const indicator = createPreviewComponent({dataset: {componentType: 'delay'}}, liveVariables);
+                            const indicator = createPreviewComponent({dataset: {componentType: 'delay'}}, liveVariables, profilePicUrl);
                             chatBody.appendChild(indicator);
                             chatBody.scrollTop = chatBody.scrollHeight;
                             await delay(800);
                             indicator.remove();
-                            const previewElement = createPreviewComponent(component, liveVariables);
+                            const previewElement = createPreviewComponent(component, liveVariables, profilePicUrl);
                             chatBody.appendChild(previewElement);
                             if(previewElement.querySelector('.audio-player-container')) setupAudioPlayer(previewElement);
                             chatBody.scrollTop = chatBody.scrollHeight;

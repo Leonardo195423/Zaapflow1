@@ -98,10 +98,6 @@
         .btn-action-yellow:hover { background-color: var(--accent-yellow-dark); }
         .btn-action-yellow:disabled { background-color: #a0a0a0; color: #555; cursor: not-allowed; }
 
-        #preview-chat-container {
-            background-color: #e5ddd5;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-        }
         #preview-chat-body::-webkit-scrollbar { width: 6px; }
         #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
         
@@ -180,7 +176,7 @@
 
     <!-- Conteúdo Principal da Aplicação (inicialmente escondido) -->
     <div id="app-wrapper" class="h-full flex-col overflow-hidden hidden">
-        <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
+        <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color flex-shrink-0">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-bolt text-2xl neon-yellow-text"></i>
                 <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
@@ -252,13 +248,13 @@
             </main>
 
             <aside class="hidden lg:flex col-span-4 bg-secondary p-4 flex-col">
-                <div class="flex justify-between items-center mb-4">
-                     <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                     <h2 class="text-lg font-bold text-primary">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
                 </div>
-                <!-- CORREÇÃO DE ROLAGEM: Este container agora limita a altura da prévia -->
-                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 min-h-0">
-                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner flex flex-col overflow-hidden">
+                <!-- CORREÇÃO DE ROLAGEM: Estrutura simplificada e classes para forçar o container a ter altura limitada e conteúdo rolável -->
+                <div class="flex-grow bg-main rounded-lg p-2 min-h-0">
+                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner flex flex-col overflow-hidden bg-gray-200" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');">
                         <!-- O conteúdo do chat (header e body) será injetado aqui pelo JS -->
                      </div>
                 </div>
@@ -551,23 +547,22 @@
             connections = remaining;
         }
 
-        function updatePreview(chatBody) {
-            if (!chatBody) {
-                const previewChatContainer = document.getElementById('preview-chat-container');
-                if (!previewChatContainer) return;
-                // CORREÇÃO DE ROLAGEM: Adicionado overflow-y: auto ao #preview-chat-body
-                previewChatContainer.innerHTML = `
-                    <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
-                        <img src="${profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'">
-                        <div><div style="font-weight: bold;">${chatName}</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div>
-                    </div>
-                    <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;"></div>
-                `;
-                chatBody = document.getElementById('preview-chat-body');
-            }
+        function updatePreview() {
+            const previewChatContainer = document.getElementById('preview-chat-container');
+            if (!previewChatContainer) return;
             
-            chatBody.innerHTML = '';
+            // CORREÇÃO: Limpa o container e recria a estrutura interna para garantir a rolagem
+            previewChatContainer.innerHTML = `
+                <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+                    <img src="${profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'">
+                    <div><div style="font-weight: bold;">${chatName}</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div>
+                </div>
+                <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
+                    <!-- O conteúdo do teste de fluxo será inserido aqui -->
+                </div>
+            `;
         }
+
 
         document.getElementById('save-settings-btn').onclick = () => {
             chatName = document.getElementById('chat-name-input').value;
@@ -809,9 +804,13 @@
                     return;
                 }
 
+                // CORREÇÃO: Recria a estrutura da prévia e pega o novo corpo do chat
+                updatePreview();
                 const chatBody = document.getElementById('preview-chat-body');
-                updatePreview(chatBody);
-                chatBody.innerHTML = '';
+                if (!chatBody) {
+                    console.error("Corpo do chat da prévia não encontrado.");
+                    return;
+                }
 
                 const delay = ms => new Promise(res => setTimeout(res, ms));
                 const liveVariables = getLiveVariables();
@@ -937,7 +936,6 @@
             } catch (error) {
                 console.error("Ocorreu um erro ao testar o fluxo:", error);
             } finally {
-                // BUG FIX: Always re-enable the button
                 testBtn.disabled = false;
                 testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
             }
@@ -1311,6 +1309,7 @@
         document.getElementById('import-file-input').addEventListener('change', handleFileImport);
         document.getElementById('export-html-btn').addEventListener('click', exportHTML);
 
+        // Inicializa a pré-visualização ao carregar a página
         updatePreview();
     });
     </script>

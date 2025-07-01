@@ -256,7 +256,8 @@
                      <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
                 </div>
-                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
+                <!-- A classe 'min-h-0' foi adicionada aqui para corrigir o problema de crescimento do container -->
+                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2 min-h-0">
                      <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
                 </div>
             </aside>
@@ -531,7 +532,7 @@
                  startSocketGravity: 60, endSocketGravity: 60,
                  dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
                  endPlug: 'behind'
-            });
+             });
             connections.push({ 
                 line, 
                 start: startConnector.closest('.canvas-component'), 
@@ -620,10 +621,10 @@
             
             if (hasVariableButton) {
                 formHTML += `<div class="mt-2 flex flex-wrap gap-2">
-                                    <button type="button" data-variable="{{nome}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{nome}}</button>
-                                    <button type="button" data-variable="{{saudacao}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{saudacao}}</button>
-                                    <button type="button" data-variable="{{dia_semana}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{dia_semana}}</button>
-                                 </div>`;
+                                     <button type="button" data-variable="{{nome}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{nome}}</button>
+                                     <button type="button" data-variable="{{saudacao}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{saudacao}}</button>
+                                     <button type="button" data-variable="{{dia_semana}}" class="insert-variable-btn px-3 py-1 rounded-md text-xs bg-tertiary hover:bg-opacity-70">Inserir {{dia_semana}}</button>
+                                   </div>`;
             }
 
             modalBody.innerHTML = formHTML;
@@ -719,15 +720,15 @@
                 case 'audio-message':
                      const audioUrl = element.dataset.url || 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; // Default silent audio
                      wrapper.innerHTML = `<div class="audio-player-container">
-                                <img src="${profilePicUrl}" onerror="this.src='https://placehold.co/40x40/777/FFFFFF?text=??'">
-                                <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-                                <div class="progress-bar-container"><div class="progress-bar"></div></div>
-                                <div class="time-info">
-                                    <span class="current-time">0:00</span>
-                                    <span class="timestamp">${time}</span>
-                                </div>
-                                <audio class="hidden-audio" src="${audioUrl}"></audio>
-                            </div>`;
+                                 <img src="${profilePicUrl}" onerror="this.src='https://placehold.co/40x40/777/FFFFFF?text=??'">
+                                 <button class="play-pause-btn"><i class="fas fa-play"></i></button>
+                                 <div class="progress-bar-container"><div class="progress-bar"></div></div>
+                                 <div class="time-info">
+                                     <span class="current-time">0:00</span>
+                                     <span class="timestamp">${time}</span>
+                                 </div>
+                                 <audio class="hidden-audio" src="${audioUrl}"></audio>
+                             </div>`;
                     break;
                 case 'video-message':
                     const videoId = element.dataset.url.split('v=')[1]?.split('&')[0] || element.dataset.url.split('/').pop();
@@ -744,17 +745,17 @@
                     break;
                 case 'user-input':
                     wrapper.innerHTML = `<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
-                                <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                                <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
-                            </div>`;
+                                 <input type="text" placeholder="${element.dataset.placeholder}" class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                 <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
+                             </div>`;
                     break;
                 case 'sent-message':
                 case 'ask-question':
                     wrapper.style.alignItems = 'flex-start';
                     wrapper.innerHTML = `<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">
-                                ${textContent}
-                                <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
-                            </div>`;
+                                     ${textContent}
+                                     <span style="display: block; font-size: 0.7em; color: #999; text-align: right; margin-top: 5px;">${time}</span>
+                                 </div>`;
                     if (type === 'ask-question') {
                         const btnContainer = document.createElement('div');
                         btnContainer.style.cssText = "align-self: flex-start; display: flex; flex-wrap: wrap; gap: 10px; padding: 5px 0 10px 0;";
@@ -1182,17 +1183,17 @@
                         
                         if (type === 'ask-question') {
                              const chosenIndex = await new Promise(resolve => {
-                                const buttons = chatBody.querySelectorAll('button[data-button-index]');
-                                buttons.forEach(button => {
-                                    button.addEventListener('click', (e) => {
-                                        chatBody.appendChild(createSentMessagePreview(e.target.innerText));
-                                        buttons.forEach(btn => { btn.disabled = true; btn.style.cursor = 'not-allowed'; });
-                                        setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; resolve(e.target.dataset.buttonIndex) }, 500);
-                                    }, { once: true });
-                                });
-                            });
-                            const connection = flowData.connections.find(c => c.startId === component.id && c.startIndex == chosenIndex);
-                            if (connection) nextComponentId = connection.endId;
+                                 const buttons = chatBody.querySelectorAll('button[data-button-index]');
+                                 buttons.forEach(button => {
+                                     button.addEventListener('click', (e) => {
+                                         chatBody.appendChild(createSentMessagePreview(e.target.innerText));
+                                         buttons.forEach(btn => { btn.disabled = true; btn.style.cursor = 'not-allowed'; });
+                                         setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; resolve(e.target.dataset.buttonIndex) }, 500);
+                                     }, { once: true });
+                                 });
+                             });
+                             const connection = flowData.connections.find(c => c.startId === component.id && c.startIndex == chosenIndex);
+                             if (connection) nextComponentId = connection.endId;
                         } else if (type === 'user-input') {
                             const inputContainer = chatBody.lastElementChild;
                             await new Promise(resolve => {

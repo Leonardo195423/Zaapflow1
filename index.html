@@ -98,6 +98,10 @@
         .btn-action-yellow:hover { background-color: var(--accent-yellow-dark); }
         .btn-action-yellow:disabled { background-color: #a0a0a0; color: #555; cursor: not-allowed; }
 
+        #preview-chat-container {
+            background-color: #e5ddd5;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+        }
         #preview-chat-body::-webkit-scrollbar { width: 6px; }
         #preview-chat-body::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
         
@@ -176,7 +180,7 @@
 
     <!-- Conteúdo Principal da Aplicação (inicialmente escondido) -->
     <div id="app-wrapper" class="h-full flex-col overflow-hidden hidden">
-        <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color flex-shrink-0">
+        <header class="bg-secondary shadow-md px-4 md:px-6 py-3 flex justify-between items-center z-30 border-b border-border-color">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-bolt text-2xl neon-yellow-text"></i>
                 <h1 class="text-lg md:text-xl font-bold text-primary">ZaapFlow</h1>
@@ -248,15 +252,12 @@
             </main>
 
             <aside class="hidden lg:flex col-span-4 bg-secondary p-4 flex-col">
-                <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                     <h2 class="text-lg font-bold text-primary">Prévia ao Vivo</h2>
+                <div class="flex justify-between items-center mb-4">
+                     <h2 class="text-lg font-bold text-primary border-b border-transparent pb-2">Prévia ao Vivo</h2>
                      <button id="test-flow-btn" class="px-3 py-1 rounded-md text-sm flex items-center gap-2 btn-action-yellow"><i class="fas fa-play"></i> Testar Fluxo</button>
                 </div>
-                <!-- CORREÇÃO DE ROLAGEM: Estrutura simplificada e classes para forçar o container a ter altura limitada e conteúdo rolável -->
-                <div class="flex-grow bg-main rounded-lg p-2 min-h-0">
-                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner flex flex-col overflow-hidden bg-gray-200" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');">
-                        <!-- O conteúdo do chat (header e body) será injetado aqui pelo JS -->
-                     </div>
+                <div id="preview-container" class="flex-grow bg-main rounded-lg p-2">
+                     <div id="preview-chat-container" class="w-full h-full max-w-md mx-auto rounded-xl shadow-inner overflow-hidden flex flex-col"></div>
                 </div>
             </aside>
         </div>
@@ -312,13 +313,16 @@
         });
 
         logoutBtn.addEventListener('click', () => {
+            // Esconde a aplicação
             appWrapper.classList.add('hidden');
             appWrapper.classList.remove('flex');
             
+            // Limpa o formulário de login
             usernameInput.value = '';
             passwordInput.value = '';
             errorMessage.classList.add('hidden');
             
+            // Mostra a tela de login
             loginOverlay.classList.remove('hidden');
             requestAnimationFrame(() => {
                  loginOverlay.classList.remove('opacity-0');
@@ -547,22 +551,22 @@
             connections = remaining;
         }
 
-        function updatePreview() {
-            const previewChatContainer = document.getElementById('preview-chat-container');
-            if (!previewChatContainer) return;
+        function updatePreview(chatBody) {
+            if (!chatBody) {
+                const previewChatContainer = document.getElementById('preview-chat-container');
+                if (!previewChatContainer) return;
+                previewChatContainer.innerHTML = `
+                    <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+                        <img src="${profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'">
+                        <div><div style="font-weight: bold;">${chatName}</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div>
+                    </div>
+                    <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;"></div>
+                `;
+                chatBody = document.getElementById('preview-chat-body');
+            }
             
-            // CORREÇÃO: Limpa o container e recria a estrutura interna para garantir a rolagem
-            previewChatContainer.innerHTML = `
-                <div style="background-color: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
-                    <img src="${profilePicUrl}" alt="Foto" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover;" onerror="this.src='https://placehold.co/45x45/075E54/FFFFFF?text=??'">
-                    <div><div style="font-weight: bold;">${chatName}</div><div style="font-size: 0.8em; color: #d1d1d1;">online</div></div>
-                </div>
-                <div id="preview-chat-body" style="flex-grow: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
-                    <!-- O conteúdo do teste de fluxo será inserido aqui -->
-                </div>
-            `;
+            chatBody.innerHTML = '';
         }
-
 
         document.getElementById('save-settings-btn').onclick = () => {
             chatName = document.getElementById('chat-name-input').value;
@@ -791,154 +795,149 @@
 
         async function runFlowTest() {
             const testBtn = document.getElementById('test-flow-btn');
+            const allComponents = Array.from(transformer.querySelectorAll('.canvas-component'));
+            const allText = allComponents.map(c => c.dataset.text || '').join(' ');
+
+            if (allComponents.length === 0) return;
+            if (connections.length === 0 && allComponents.length > 1) {
+                console.warn("O fluxo não está conectado.");
+                return;
+            }
+
             testBtn.disabled = true;
             testBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Testando...`;
 
-            try {
-                const allComponents = Array.from(transformer.querySelectorAll('.canvas-component'));
-                const allText = allComponents.map(c => c.dataset.text || '').join(' ');
+            const chatBody = document.getElementById('preview-chat-body');
+            updatePreview(chatBody);
+            chatBody.innerHTML = '';
 
-                if (allComponents.length === 0) return;
-                if (connections.length === 0 && allComponents.length > 1) {
-                    console.warn("O fluxo não está conectado. Por favor, conecte os componentes para testar.");
-                    return;
+            const delay = ms => new Promise(res => setTimeout(res, ms));
+            const liveVariables = getLiveVariables();
+
+            if (allText.includes('{{nome}}')) {
+                const name = await new Promise(resolve => {
+                    const questionHTML = `<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">Qual é o seu nome?</div>`;
+                    chatBody.innerHTML += questionHTML;
+                    
+                    const inputContainer = document.createElement('div');
+                    inputContainer.innerHTML = `<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
+                        <input type="text" placeholder="Digite seu nome..." class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>`;
+                    chatBody.appendChild(inputContainer);
+                    
+                    const inputField = inputContainer.querySelector('.preview-input');
+                    const sendButton = inputContainer.querySelector('.preview-send-btn');
+                    inputField.focus();
+
+                    const handleSend = () => {
+                        const userText = inputField.value || "Visitante";
+                        inputContainer.remove();
+                        chatBody.appendChild(createSentMessagePreview(userText));
+                        chatBody.scrollTop = chatBody.scrollHeight;
+                        resolve(userText);
+                    };
+                    sendButton.onclick = handleSend;
+                    inputField.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+                });
+                liveVariables.nome = name;
+                await delay(500);
+            }
+
+
+            const componentMap = new Map(allComponents.map(comp => [comp.id, comp]));
+            const endNodeIds = new Set(connections.map(conn => conn.end.id));
+            const startNodes = allComponents.filter(comp => !endNodeIds.has(comp.id));
+
+            if (startNodes.length === 0 && allComponents.length > 0) {
+                console.error("Nenhum componente de início encontrado.");
+                testBtn.disabled = false;
+                testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
+                return;
+            }
+
+            const executeComponent = async (component) => {
+                if (!component) return;
+
+                const type = component.dataset.componentType;
+                let nextComponentId = null;
+                
+                if (type === 'delay') {
+                    const indicator = createPreviewComponent(component, liveVariables, profilePicUrl);
+                    chatBody.appendChild(indicator);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    await delay(component.dataset.delay * 1000);
+                    indicator.remove();
+                } else {
+                    const indicator = createPreviewComponent({dataset: {componentType: 'delay'}}, liveVariables, profilePicUrl);
+                    chatBody.appendChild(indicator);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    await delay(800);
+                    indicator.remove();
+
+                    const previewElement = createPreviewComponent(component, liveVariables, profilePicUrl);
+                    chatBody.appendChild(previewElement);
+                    if(previewElement.querySelector('.audio-player-container')) {
+                        setupAudioPlayer(previewElement);
+                    }
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    await delay(500);
                 }
 
-                // CORREÇÃO: Recria a estrutura da prévia e pega o novo corpo do chat
-                updatePreview();
-                const chatBody = document.getElementById('preview-chat-body');
-                if (!chatBody) {
-                    console.error("Corpo do chat da prévia não encontrado.");
-                    return;
-                }
+                if (type === 'ask-question') {
+                    const chosenIndex = await new Promise(resolve => {
+                        const buttons = chatBody.querySelectorAll('button[data-button-index]');
+                        buttons.forEach(button => {
+                            button.addEventListener('click', (e) => {
+                                chatBody.appendChild(createSentMessagePreview(e.target.innerText));
+                                buttons.forEach(btn => {
+                                    btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.backgroundColor = '#f0f0f0'; btn.style.borderColor = '#ccc'; btn.style.color = '#aaa';
+                                });
+                                e.target.style.backgroundColor = '#075E54'; e.target.style.color = 'white';
+                                
+                                setTimeout(() => {
+                                    chatBody.scrollTop = chatBody.scrollHeight;
+                                    resolve(e.target.dataset.buttonIndex)
+                                }, 500);
+                            }, { once: true });
+                        });
+                    });
+                    const connection = connections.find(c => c.start.id === component.id && c.startIndex == chosenIndex);
+                    if (connection) nextComponentId = connection.end.id;
 
-                const delay = ms => new Promise(res => setTimeout(res, ms));
-                const liveVariables = getLiveVariables();
-
-                if (allText.includes('{{nome}}')) {
-                    const name = await new Promise(resolve => {
-                        const questionHTML = `<div style="max-width: 80%; background-color: #fff; padding: 10px 15px; border-radius: 10px; border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); color: #333;">Qual é o seu nome?</div>`;
-                        chatBody.innerHTML += questionHTML;
-                        
-                        const inputContainer = document.createElement('div');
-                        inputContainer.innerHTML = `<div style="width: 100%; background-color: transparent; padding: 10px; display: flex; gap: 10px; margin-top: auto;">
-                            <input type="text" placeholder="Digite seu nome..." class="preview-input" style="flex-grow: 1; border: none; padding: 12px 15px; border-radius: 20px; font-size: 1em; background-color: #fff; color: #000; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                            <button class="preview-send-btn" style="background-color: #075E54; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.2em; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><i class="fa-solid fa-paper-plane"></i></button>
-                        </div>`;
-                        chatBody.appendChild(inputContainer);
-                        
+                } else if (type === 'user-input') {
+                    const inputContainer = chatBody.lastElementChild;
+                    await new Promise(resolve => {
                         const inputField = inputContainer.querySelector('.preview-input');
                         const sendButton = inputContainer.querySelector('.preview-send-btn');
-                        inputField.focus();
-
+                        inputField.disabled = false; inputField.focus();
                         const handleSend = () => {
-                            const userText = inputField.value || "Visitante";
+                            const userText = inputField.value || "Resposta simulada";
                             inputContainer.remove();
                             chatBody.appendChild(createSentMessagePreview(userText));
                             chatBody.scrollTop = chatBody.scrollHeight;
-                            resolve(userText);
+                            resolve();
                         };
                         sendButton.onclick = handleSend;
                         inputField.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
                     });
-                    liveVariables.nome = name;
-                    await delay(500);
+                    const connection = connections.find(c => c.start.id === component.id);
+                    if (connection) nextComponentId = connection.end.id;
+                } else {
+                    const connection = connections.find(c => c.start.id === component.id);
+                    if (connection) nextComponentId = connection.end.id;
                 }
-
-                const componentMap = new Map(allComponents.map(comp => [comp.id, comp]));
-                const endNodeIds = new Set(connections.map(conn => conn.end.id));
-                const startNodes = allComponents.filter(comp => !endNodeIds.has(comp.id));
-
-                if (startNodes.length === 0 && allComponents.length > 0) {
-                    console.error("Nenhum componente de início encontrado. Um fluxo deve ter pelo menos um componente sem conexões de entrada.");
-                    return;
-                }
-
-                const executeComponent = async (component) => {
-                    if (!component) return;
-
-                    const type = component.dataset.componentType;
-                    let nextComponentId = null;
-                    
-                    if (type === 'delay') {
-                        const indicator = createPreviewComponent(component, liveVariables, profilePicUrl);
-                        chatBody.appendChild(indicator);
-                        chatBody.scrollTop = chatBody.scrollHeight;
-                        await delay(component.dataset.delay * 1000);
-                        indicator.remove();
-                    } else {
-                        const indicator = createPreviewComponent({dataset: {componentType: 'delay'}}, liveVariables, profilePicUrl);
-                        chatBody.appendChild(indicator);
-                        chatBody.scrollTop = chatBody.scrollHeight;
-                        await delay(800);
-                        indicator.remove();
-
-                        const previewElement = createPreviewComponent(component, liveVariables, profilePicUrl);
-                        chatBody.appendChild(previewElement);
-                        if(previewElement.querySelector('.audio-player-container')) {
-                            setupAudioPlayer(previewElement);
-                        }
-                        chatBody.scrollTop = chatBody.scrollHeight;
-                        await delay(500);
-                    }
-
-                    if (type === 'ask-question') {
-                        const chosenIndex = await new Promise(resolve => {
-                            const buttons = chatBody.querySelectorAll('button[data-button-index]');
-                            buttons.forEach(button => {
-                                button.addEventListener('click', (e) => {
-                                    chatBody.appendChild(createSentMessagePreview(e.target.innerText));
-                                    buttons.forEach(btn => {
-                                        btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.backgroundColor = '#f0f0f0'; btn.style.borderColor = '#ccc'; btn.style.color = '#aaa';
-                                    });
-                                    e.target.style.backgroundColor = '#075E54'; e.target.style.color = 'white';
-                                    
-                                    setTimeout(() => {
-                                        chatBody.scrollTop = chatBody.scrollHeight;
-                                        resolve(e.target.dataset.buttonIndex)
-                                    }, 500);
-                                }, { once: true });
-                            });
-                        });
-                        const connection = connections.find(c => c.start.id === component.id && c.startIndex == chosenIndex);
-                        if (connection) nextComponentId = connection.end.id;
-
-                    } else if (type === 'user-input') {
-                        const inputContainer = chatBody.lastElementChild;
-                        await new Promise(resolve => {
-                            const inputField = inputContainer.querySelector('.preview-input');
-                            const sendButton = inputContainer.querySelector('.preview-send-btn');
-                            inputField.disabled = false; inputField.focus();
-                            const handleSend = () => {
-                                const userText = inputField.value || "Resposta simulada";
-                                inputContainer.remove();
-                                chatBody.appendChild(createSentMessagePreview(userText));
-                                chatBody.scrollTop = chatBody.scrollHeight;
-                                resolve();
-                            };
-                            sendButton.onclick = handleSend;
-                            inputField.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
-                        });
-                        const connection = connections.find(c => c.start.id === component.id);
-                        if (connection) nextComponentId = connection.end.id;
-                    } else {
-                        const connection = connections.find(c => c.start.id === component.id);
-                        if (connection) nextComponentId = connection.end.id;
-                    }
-                    
-                    if (nextComponentId) {
-                        await executeComponent(componentMap.get(nextComponentId));
-                    }
-                };
                 
-                const executionPromises = startNodes.map(node => executeComponent(node));
-                await Promise.all(executionPromises);
-            } catch (error) {
-                console.error("Ocorreu um erro ao testar o fluxo:", error);
-            } finally {
-                testBtn.disabled = false;
-                testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
-            }
+                if (nextComponentId) {
+                    await executeComponent(componentMap.get(nextComponentId));
+                }
+            };
+            
+            const executionPromises = startNodes.map(node => executeComponent(node));
+            await Promise.all(executionPromises);
+            
+            testBtn.disabled = false;
+            testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
         }
 
 
@@ -1309,7 +1308,6 @@
         document.getElementById('import-file-input').addEventListener('change', handleFileImport);
         document.getElementById('export-html-btn').addEventListener('click', exportHTML);
 
-        // Inicializa a pré-visualização ao carregar a página
         updatePreview();
     });
     </script>

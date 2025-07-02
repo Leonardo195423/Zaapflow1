@@ -48,7 +48,7 @@
         .draggable span { margin-left: 0.75rem; font-size: 0.875rem; font-weight: 500; }
         
         .canvas-component {
-            position: absolute; cursor: grab; z-index: 10; width: 280px;
+            position: absolute; cursor: grab; z-index: 100 !important; width: 280px;
             background-color: var(--bg-secondary); border: 1px solid var(--border-color);
             border-radius: 8px; box-shadow: 0 10px 20px var(--shadow-color);
             transition: box-shadow 0.2s ease;
@@ -444,6 +444,14 @@
             }, 3000);
         };
 
+        const forceLinesBehind = () => {
+            const svgElements = document.querySelectorAll('svg[class*="leader-line"]');
+            svgElements.forEach(svg => {
+                svg.style.zIndex = '1 !important';
+                svg.style.position = 'absolute';
+            });
+        };
+
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
             connections.forEach(c => {
@@ -452,6 +460,8 @@
                     c.updateDeleteBtnPosition();
                 }
             });
+            // Forçar linhas atrás dos elementos após transformações
+            setTimeout(forceLinesBehind, 10);
         };
 
         flowCanvas.addEventListener('wheel', e => {
@@ -624,6 +634,11 @@
                  dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
                  startPlug: 'behind', endPlug: 'behind'
              });
+             
+             // Forçar z-index baixo no SVG da LeaderLine
+             setTimeout(() => {
+                 forceLinesBehind();
+             }, 10);
              
              // Criar botão de desconexão
              const deleteBtn = document.createElement('button');

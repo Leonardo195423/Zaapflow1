@@ -80,6 +80,7 @@
             pointer-events: none;
             z-index: 1 !important;
             overflow: visible;
+            clip-path: none;
         }
         
         .connection-line {
@@ -440,7 +441,7 @@
         // --- LÓGICA DO CONSTRUTOR DE FUNIL ---
         const flowCanvas = document.getElementById('flow-canvas');
         const transformer = document.getElementById('flow-transformer');
-        const connectionsSvg = document.getElementById('connections-svg');
+        let connectionsSvg = document.getElementById('connections-svg');
         const modal = document.getElementById('edit-modal');
         const toast = document.getElementById('toast-notification');
         
@@ -503,16 +504,6 @@
                 };
                 
                 this.updatePosition();
-                this.updateSVGViewBox();
-            }
-            
-            updateSVGViewBox() {
-                // Calcular dimensões necessárias para o SVG
-                const canvasRect = flowCanvas.getBoundingClientRect();
-                const maxDimension = Math.max(canvasRect.width, canvasRect.height) * 3; // Margem extra
-                connectionsSvg.setAttribute('viewBox', `${-maxDimension/2} ${-maxDimension/2} ${maxDimension} ${maxDimension}`);
-                connectionsSvg.setAttribute('width', maxDimension);
-                connectionsSvg.setAttribute('height', maxDimension);
             }
             
             updatePosition() {
@@ -525,20 +516,36 @@
                 const endX = endRect.x;
                 const endY = endRect.y + endRect.height / 2;
                 
-                // Criar curva suave
-                const controlX1 = startX + (endX - startX) * 0.5;
-                const controlY1 = startY;
-                const controlX2 = startX + (endX - startX) * 0.5;
-                const controlY2 = endY;
+                // Verificar se a linha passa pela barra lateral (assumindo que ela tem 288px de largura)
+                const sidebarWidth = 288;
+                let pathData;
                 
-                const pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                if (startX < sidebarWidth && endX > sidebarWidth) {
+                    // Linha passa pela barra lateral, criar curva que contorna
+                    const controlX1 = startX + 50;
+                    const controlY1 = startY;
+                    const controlX2 = sidebarWidth + 50;
+                    const controlY2 = endY;
+                    pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                } else {
+                    // Criar curva suave normal
+                    const controlX1 = startX + (endX - startX) * 0.5;
+                    const controlY1 = startY;
+                    const controlX2 = startX + (endX - startX) * 0.5;
+                    const controlY2 = endY;
+                    pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                }
+                
                 this.path.setAttribute('d', pathData);
                 
                 // Posicionar botão delete no meio da linha
                 const midX = startX + (endX - startX) * 0.5;
                 const midY = startY + (endY - startY) * 0.5;
                 
-                this.deleteBtn.style.left = `${midX}px`;
+                // Garantir que o botão X não fique na barra lateral
+                const adjustedMidX = Math.max(midX, sidebarWidth + 20);
+                
+                this.deleteBtn.style.left = `${adjustedMidX}px`;
                 this.deleteBtn.style.top = `${midY}px`;
             }
             
@@ -568,15 +575,6 @@
 
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            
-            // Atualizar viewBox do SVG para garantir que as linhas sejam sempre visíveis
-            const canvasRect = flowCanvas.getBoundingClientRect();
-            const maxDimension = Math.max(canvasRect.width, canvasRect.height) * 4 / zoom; // Ajustar com base no zoom
-            const offsetX = -panX / zoom;
-            const offsetY = -panY / zoom;
-            connectionsSvg.setAttribute('viewBox', `${offsetX - maxDimension/2} ${offsetY - maxDimension/2} ${maxDimension} ${maxDimension}`);
-            connectionsSvg.setAttribute('width', canvasRect.width);
-            connectionsSvg.setAttribute('height', canvasRect.height);
             
             // Atualizar todas as conexões
             connections.forEach(conn => conn.updatePosition());
@@ -688,22 +686,39 @@
 
         function makeDraggable(element) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            let isDragging = false;
+            
             element.onmousedown = e => {
+                // Não iniciar drag se estiver clicando em conectores, controles ou inputs
                 if (e.target.closest('.connector-point, .component-controls, input, textarea, button')) return;
+                if (isDrawingConnection) return; // Não arrastar durante desenho de conexão
+                
                 e.preventDefault();
-                pos3 = e.clientX; pos4 = e.clientY;
-                document.onmouseup = closeDragElement; document.onmousemove = elementDrag;
+                e.stopPropagation();
+                isDragging = true;
+                pos3 = e.clientX; 
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement; 
+                document.onmousemove = elementDrag;
             };
+            
             function elementDrag(e) {
+                if (!isDragging) return;
                 e.preventDefault();
                 pos1 = (pos3 - e.clientX) / zoom;
                 pos2 = (pos4 - e.clientY) / zoom;
-                pos3 = e.clientX; pos4 = e.clientY;
+                pos3 = e.clientX; 
+                pos4 = e.clientY;
                 element.style.top = `${element.offsetTop - pos2}px`;
                 element.style.left = `${element.offsetLeft - pos1}px`;
                 updateConnectionsForElement(element);
             }
-            function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
+            
+            function closeDragElement() { 
+                isDragging = false;
+                document.onmouseup = null; 
+                document.onmousemove = null; 
+            }
         }
         
         function setupControls(element) {
@@ -716,20 +731,27 @@
         }
 
         // Sistema de desenho de conexões
-        flowCanvas.addEventListener('mousedown', e => {
+        let isDrawingConnection = false;
+        
+        document.addEventListener('mousedown', e => {
             if (e.target.classList.contains('output')) {
+                e.preventDefault();
+                e.stopPropagation();
+                isDrawingConnection = true;
                 startElementForLine = e.target;
+                
                 // Criar linha temporária para visualização
                 currentDrawingLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 currentDrawingLine.setAttribute('stroke', 'rgba(255, 210, 63, 0.7)');
                 currentDrawingLine.setAttribute('stroke-width', '2');
                 currentDrawingLine.setAttribute('fill', 'none');
+                currentDrawingLine.setAttribute('stroke-dasharray', '5,5');
                 connectionsSvg.appendChild(currentDrawingLine);
             }
         });
 
         document.addEventListener('mousemove', e => { 
-            if (currentDrawingLine && startElementForLine) {
+            if (isDrawingConnection && currentDrawingLine && startElementForLine) {
                 const rect = flowCanvas.getBoundingClientRect();
                 const canvasX = (e.clientX - rect.left - panX) / zoom;
                 const canvasY = (e.clientY - rect.top - panY) / zoom;
@@ -751,14 +773,31 @@
         });
         
         document.addEventListener('mouseup', e => {
-            if (currentDrawingLine) {
-                currentDrawingLine.remove();
-                currentDrawingLine = null;
-                
-                const endElement = e.target.closest('.canvas-component');
-                if (endElement && endElement !== startElementForLine.closest('.canvas-component') && e.target.classList.contains('input')) {
-                    createConnection(startElementForLine, e.target);
+            if (isDrawingConnection) {
+                if (currentDrawingLine) {
+                    currentDrawingLine.remove();
+                    currentDrawingLine = null;
                 }
+                
+                if (e.target.classList.contains('input')) {
+                    const endElement = e.target.closest('.canvas-component');
+                    const startElement = startElementForLine.closest('.canvas-component');
+                    
+                    if (endElement && startElement && endElement !== startElement) {
+                        // Verificar se já existe uma conexão para este input
+                        const existingConnection = connections.find(conn => 
+                            conn.endElement === endElement
+                        );
+                        
+                        if (existingConnection) {
+                            existingConnection.remove();
+                        }
+                        
+                        createConnection(startElementForLine, e.target);
+                    }
+                }
+                
+                isDrawingConnection = false;
                 startElementForLine = null;
             }
         });
@@ -1309,22 +1348,19 @@
 
         function loadFlow(flowData) {
             transformer.innerHTML = '';
+            
             // Recriar o SVG de conexões
             const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             newSvg.id = 'connections-svg';
-            
-            // Configurar dimensões iniciais do SVG
-            const canvasRect = flowCanvas.getBoundingClientRect();
-            const maxDimension = Math.max(canvasRect.width, canvasRect.height) * 4;
-            newSvg.setAttribute('viewBox', `${-maxDimension/2} ${-maxDimension/2} ${maxDimension} ${maxDimension}`);
-            newSvg.setAttribute('width', canvasRect.width);
-            newSvg.setAttribute('height', canvasRect.height);
             newSvg.style.position = 'absolute';
             newSvg.style.top = '0';
             newSvg.style.left = '0';
+            newSvg.style.width = '100%';
+            newSvg.style.height = '100%';
             newSvg.style.pointerEvents = 'none';
             newSvg.style.zIndex = '1';
             newSvg.style.overflow = 'visible';
+            newSvg.style.clipPath = 'none';
             
             newSvg.innerHTML = `
                 <defs>

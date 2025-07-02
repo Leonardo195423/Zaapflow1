@@ -72,12 +72,13 @@
         .connector-point.output { right: -8px; transform: translateY(-50%); }
         .multi-output-container .connector-point.output { position: relative; right: 0; top: 0; transform: none; }
 
-        .leader-line { z-index: 1; }
+        .leader-line { z-index: 1 !important; }
         .component-controls { display: none; }
         .canvas-component:hover .component-controls { display: flex; }
+        .canvas-component { z-index: 10; }
         
         .connection-delete-btn {
-            position: absolute;
+            position: fixed;
             width: 20px;
             height: 20px;
             background-color: #ff4444;
@@ -90,10 +91,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 20;
+            z-index: 9999 !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             transition: all 0.2s ease;
             transform: translate(-50%, -50%);
+            pointer-events: auto;
         }
         .connection-delete-btn:hover {
             background-color: #ff6666;
@@ -633,28 +635,17 @@
              const updateDeleteBtnPosition = () => {
                  const startRect = startConnector.getBoundingClientRect();
                  const endRect = endConnector.getBoundingClientRect();
-                 const canvasRect = flowCanvas.getBoundingClientRect();
                  
-                 // Calcular posição no espaço do canvas
-                 const startX = (startRect.left + startRect.width/2 - canvasRect.left);
-                 const startY = (startRect.top + startRect.height/2 - canvasRect.top);
-                 const endX = (endRect.left + endRect.width/2 - canvasRect.left);
-                 const endY = (endRect.top + endRect.height/2 - canvasRect.top);
+                 // Calcular ponto médio diretamente na viewport
+                 const midX = (startRect.left + startRect.width/2 + endRect.left + endRect.width/2) / 2;
+                 const midY = (startRect.top + startRect.height/2 + endRect.top + endRect.height/2) / 2;
                  
-                 // Calcular ponto médio
-                 const midX = (startX + endX) / 2;
-                 const midY = (startY + endY) / 2;
-                 
-                 // Converter para coordenadas do transformer (considerando zoom e pan)
-                 const transformedX = (midX - panX) / zoom;
-                 const transformedY = (midY - panY) / zoom;
-                 
-                 deleteBtn.style.left = `${transformedX}px`;
-                 deleteBtn.style.top = `${transformedY}px`;
+                 deleteBtn.style.left = `${midX}px`;
+                 deleteBtn.style.top = `${midY}px`;
              };
              
-             // Adicionar o botão ao transformer
-             transformer.appendChild(deleteBtn);
+             // Adicionar o botão ao body para position fixed
+             document.body.appendChild(deleteBtn);
              updateDeleteBtnPosition();
              
              const connectionObj = { 
@@ -690,9 +681,9 @@
             // Remover a linha
             connectionObj.line.remove();
             
-            // Remover o botão de desconexão
+            // Remover o botão de desconexão do body
             if (connectionObj.deleteBtn && connectionObj.deleteBtn.parentNode) {
-                connectionObj.deleteBtn.parentNode.removeChild(connectionObj.deleteBtn);
+                document.body.removeChild(connectionObj.deleteBtn);
             }
             
             // Remover da lista de conexões
@@ -1242,7 +1233,7 @@
             connections.forEach(conn => {
                 conn.line.remove();
                 if (conn.deleteBtn && conn.deleteBtn.parentNode) {
-                    conn.deleteBtn.parentNode.removeChild(conn.deleteBtn);
+                    document.body.removeChild(conn.deleteBtn);
                 }
             });
             connections = [];

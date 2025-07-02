@@ -444,7 +444,12 @@
 
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            connections.forEach(c => c.line.position());
+            connections.forEach(c => {
+                c.line.position();
+                if (c.updateDeleteBtnPosition) {
+                    c.updateDeleteBtnPosition();
+                }
+            });
         };
 
         flowCanvas.addEventListener('wheel', e => {
@@ -617,21 +622,89 @@
                  dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
                  endPlug: 'behind'
              });
-            connections.push({ 
-                line, 
-                start: startConnector.closest('.canvas-component'), 
-                end: endConnector.closest('.canvas-component'), 
-                startIndex: startConnector.dataset.outputIndex 
-            });
+             
+             // Criar botão de desconexão
+             const deleteBtn = document.createElement('button');
+             deleteBtn.className = 'connection-delete-btn';
+             deleteBtn.innerHTML = '×';
+             deleteBtn.title = 'Remover conexão';
+             
+             // Posicionar o botão no meio da linha
+             const updateDeleteBtnPosition = () => {
+                 const startRect = startConnector.getBoundingClientRect();
+                 const endRect = endConnector.getBoundingClientRect();
+                 const transformerRect = transformer.getBoundingClientRect();
+                 
+                 // Calcular posição relativa ao transformer
+                 const startX = startRect.left + startRect.width/2 - transformerRect.left;
+                 const startY = startRect.top + startRect.height/2 - transformerRect.top;
+                 const endX = endRect.left + endRect.width/2 - transformerRect.left;
+                 const endY = endRect.top + endRect.height/2 - transformerRect.top;
+                 
+                 const midX = (startX + endX) / 2;
+                 const midY = (startY + endY) / 2;
+                 
+                 deleteBtn.style.left = `${midX}px`;
+                 deleteBtn.style.top = `${midY}px`;
+             };
+             
+             // Adicionar o botão ao transformer
+             transformer.appendChild(deleteBtn);
+             updateDeleteBtnPosition();
+             
+             const connectionObj = { 
+                 line, 
+                 start: startConnector.closest('.canvas-component'), 
+                 end: endConnector.closest('.canvas-component'), 
+                 startIndex: startConnector.dataset.outputIndex,
+                 deleteBtn: deleteBtn,
+                 updateDeleteBtnPosition: updateDeleteBtnPosition
+             };
+             
+             // Evento de clique para remover a conexão
+             deleteBtn.onclick = (e) => {
+                 e.stopPropagation();
+                 removeConnection(connectionObj);
+             };
+             
+             connections.push(connectionObj);
         }
 
-        function updateConnectionsForElement(element) { connections.forEach(conn => { if (conn.start === element || conn.end === element) conn.line.position(); }); }
+        function updateConnectionsForElement(element) { 
+            connections.forEach(conn => { 
+                if (conn.start === element || conn.end === element) {
+                    conn.line.position();
+                    if (conn.updateDeleteBtnPosition) {
+                        conn.updateDeleteBtnPosition();
+                    }
+                }
+            }); 
+        }
+        
+        function removeConnection(connectionObj) {
+            // Remover a linha
+            connectionObj.line.remove();
+            
+            // Remover o botão de desconexão
+            if (connectionObj.deleteBtn && connectionObj.deleteBtn.parentNode) {
+                connectionObj.deleteBtn.parentNode.removeChild(connectionObj.deleteBtn);
+            }
+            
+            // Remover da lista de conexões
+            const index = connections.indexOf(connectionObj);
+            if (index > -1) {
+                connections.splice(index, 1);
+            }
+        }
         
         function removeConnectionsForElement(element) {
             const remaining = [];
             connections.forEach(conn => {
-                if (conn.start === element || conn.end === element) conn.line.remove();
-                else remaining.push(conn);
+                if (conn.start === element || conn.end === element) {
+                    removeConnection(conn);
+                } else {
+                    remaining.push(conn);
+                }
             });
             connections = remaining;
         }
@@ -1161,7 +1234,12 @@
 
         function loadFlow(flowData) {
             transformer.innerHTML = '';
-            connections.forEach(conn => conn.line.remove());
+            connections.forEach(conn => {
+                conn.line.remove();
+                if (conn.deleteBtn && conn.deleteBtn.parentNode) {
+                    conn.deleteBtn.parentNode.removeChild(conn.deleteBtn);
+                }
+            });
             connections = [];
 
             if (flowData.settings) {

@@ -537,7 +537,6 @@
                 // Verificar se a linha passa pela barra lateral (assumindo que ela tem 288px de largura)
                 const sidebarWidth = 288;
                 let pathData;
-                let midX, midY;
                 
                 if (startX < sidebarWidth && endX > sidebarWidth) {
                     // Linha passa pela barra lateral, criar curva que contorna
@@ -546,11 +545,6 @@
                     const controlX2 = sidebarWidth + 50;
                     const controlY2 = endY;
                     pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
-                    
-                    // Para curvas Bézier, calcular o ponto médio na curva
-                    const t = 0.5; // Meio da curva
-                    midX = Math.pow(1-t, 3) * startX + 3 * Math.pow(1-t, 2) * t * controlX1 + 3 * (1-t) * Math.pow(t, 2) * controlX2 + Math.pow(t, 3) * endX;
-                    midY = Math.pow(1-t, 3) * startY + 3 * Math.pow(1-t, 2) * t * controlY1 + 3 * (1-t) * Math.pow(t, 2) * controlY2 + Math.pow(t, 3) * endY;
                 } else {
                     // Criar curva suave normal
                     const controlX1 = startX + (endX - startX) * 0.5;
@@ -558,23 +552,35 @@
                     const controlX2 = startX + (endX - startX) * 0.5;
                     const controlY2 = endY;
                     pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
-                    
-                    // Para curvas Bézier simétricas, o ponto médio é mais simples
-                    midX = startX + (endX - startX) * 0.5;
-                    midY = startY + (endY - startY) * 0.5;
                 }
                 
                 this.path.setAttribute('d', pathData);
                 
-                // Garantir que o botão X não fique na barra lateral
-                const adjustedMidX = Math.max(midX, sidebarWidth + 20);
-                
-                // Posicionar o botão delete SVG no meio da linha
-                // Como é um elemento SVG nativo, ele herda automaticamente as transformações
-                this.deleteCircle.setAttribute('cx', adjustedMidX);
-                this.deleteCircle.setAttribute('cy', midY);
-                this.deleteText.setAttribute('x', adjustedMidX);
-                this.deleteText.setAttribute('y', midY);
+                // Usar getPointAtLength() para obter o ponto exato no meio da linha
+                try {
+                    const pathLength = this.path.getTotalLength();
+                    const midPoint = this.path.getPointAtLength(pathLength / 2);
+                    
+                    // Garantir que o botão X não fique na barra lateral
+                    const adjustedMidX = Math.max(midPoint.x, sidebarWidth + 20);
+                    
+                    // Posicionar o botão delete SVG no ponto médio real da linha
+                    this.deleteCircle.setAttribute('cx', adjustedMidX);
+                    this.deleteCircle.setAttribute('cy', midPoint.y);
+                    this.deleteText.setAttribute('x', adjustedMidX);
+                    this.deleteText.setAttribute('y', midPoint.y);
+                } catch (error) {
+                    // Fallback caso getPointAtLength() falhe
+                    console.warn('Fallback para posicionamento do botão X:', error);
+                    const midX = startX + (endX - startX) * 0.5;
+                    const midY = startY + (endY - startY) * 0.5;
+                    const adjustedMidX = Math.max(midX, sidebarWidth + 20);
+                    
+                    this.deleteCircle.setAttribute('cx', adjustedMidX);
+                    this.deleteCircle.setAttribute('cy', midY);
+                    this.deleteText.setAttribute('x', adjustedMidX);
+                    this.deleteText.setAttribute('y', midY);
+                }
             }
             
             getElementPosition(element) {

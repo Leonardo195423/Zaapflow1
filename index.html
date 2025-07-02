@@ -447,10 +447,42 @@
         const forceLinesBehind = () => {
             const svgElements = document.querySelectorAll('svg[class*="leader-line"]');
             svgElements.forEach(svg => {
-                svg.style.zIndex = '1 !important';
+                svg.style.setProperty('z-index', '1', 'important');
                 svg.style.position = 'absolute';
+                // Forçar também nos elementos filhos
+                const paths = svg.querySelectorAll('path');
+                paths.forEach(path => {
+                    path.style.setProperty('z-index', '1', 'important');
+                });
             });
         };
+
+        // Observer para monitorar mudanças no DOM e forçar z-index
+        const observer = new MutationObserver((mutations) => {
+            let shouldForce = false;
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && (
+                            node.tagName === 'SVG' || 
+                            node.classList?.contains('leader-line') ||
+                            node.querySelector?.('svg[class*="leader-line"]')
+                        )) {
+                            shouldForce = true;
+                        }
+                    });
+                }
+            });
+            if (shouldForce) {
+                setTimeout(forceLinesBehind, 0);
+            }
+        });
+
+        // Iniciar observação
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
 
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
@@ -460,8 +492,10 @@
                     c.updateDeleteBtnPosition();
                 }
             });
-            // Forçar linhas atrás dos elementos após transformações
+            // Forçar linhas atrás dos elementos após transformações - múltiplas tentativas
+            setTimeout(forceLinesBehind, 0);
             setTimeout(forceLinesBehind, 10);
+            setTimeout(forceLinesBehind, 50);
         };
 
         flowCanvas.addEventListener('wheel', e => {
@@ -635,10 +669,19 @@
                  startPlug: 'behind', endPlug: 'behind'
              });
              
-             // Forçar z-index baixo no SVG da LeaderLine
+             // Forçar z-index baixo no SVG da LeaderLine - múltiplas tentativas
+             setTimeout(() => {
+                 forceLinesBehind();
+             }, 0);
              setTimeout(() => {
                  forceLinesBehind();
              }, 10);
+             setTimeout(() => {
+                 forceLinesBehind();
+             }, 50);
+             setTimeout(() => {
+                 forceLinesBehind();
+             }, 100);
              
              // Criar botão de desconexão
              const deleteBtn = document.createElement('button');
@@ -648,15 +691,26 @@
              
              // Posicionar o botão no meio da linha
              const updateDeleteBtnPosition = () => {
-                 const startRect = startConnector.getBoundingClientRect();
-                 const endRect = endConnector.getBoundingClientRect();
+                 // Calcular posição diretamente dos elementos sem considerar transformações
+                 const startElement = startConnector.closest('.canvas-component');
+                 const endElement = endConnector.closest('.canvas-component');
                  
-                 // Calcular ponto médio diretamente na viewport
-                 const midX = (startRect.left + startRect.width/2 + endRect.left + endRect.width/2) / 2;
-                 const midY = (startRect.top + startRect.height/2 + endRect.top + endRect.height/2) / 2;
+                 const startX = parseFloat(startElement.style.left) + startElement.offsetWidth;
+                 const startY = parseFloat(startElement.style.top) + startElement.offsetHeight / 2;
+                 const endX = parseFloat(endElement.style.left);
+                 const endY = parseFloat(endElement.style.top) + endElement.offsetHeight / 2;
                  
-                 deleteBtn.style.left = `${midX}px`;
-                 deleteBtn.style.top = `${midY}px`;
+                 // Ponto médio da linha
+                 const midX = (startX + endX) / 2;
+                 const midY = (startY + endY) / 2;
+                 
+                 // Aplicar transformações do canvas
+                 const transformedX = midX * zoom + panX;
+                 const transformedY = midY * zoom + panY;
+                 
+                 // Posicionar o botão
+                 deleteBtn.style.left = `${transformedX}px`;
+                 deleteBtn.style.top = `${transformedY}px`;
              };
              
              // Adicionar o botão ao body para position fixed

@@ -266,6 +266,60 @@
                 </div>
             </aside>
 
+            <!-- Painel Esquerdo: Configurações e Componentes -->
+            <aside class="w-full lg:w-72 bg-secondary p-4 overflow-y-auto border-r border-border-color flex-shrink-0">
+                <div class="mb-6">
+                    <h3 class="font-semibold text-text-secondary mb-3">CONFIGURAÇÕES</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="chat-name-input" class="text-sm text-text-secondary">Nome do Chat</label>
+                            <input type="text" id="chat-name-input" value="ZaapFlow" class="w-full mt-1 p-2 rounded-md text-sm">
+                        </div>
+                        <div>
+                            <label for="chat-photo-input" class="text-sm text-text-secondary">URL da Foto de Perfil</label>
+                            <input type="text" id="chat-photo-input" value="https://i.ibb.co/fzj6mf9K/Chat-GPT-Image-1-de-jul-de-2025-16-45-48.png" class="w-full mt-1 p-2 rounded-md text-sm">
+                        </div>
+                        <div>
+                            <label for="pixel-id-input" class="text-sm text-text-secondary">ID do Pixel do Facebook</label>
+                            <input type="text" id="pixel-id-input" placeholder="Ex: 1234567890123456" class="w-full mt-1 p-2 rounded-md text-sm">
+                        </div>
+                        <div>
+                            <label for="custom-scripts-input" class="text-sm text-text-secondary">Scripts Adicionais (head)</label>
+                            <textarea id="custom-scripts-input" placeholder="Cole aqui scripts do UTMfy, Google Analytics, etc." class="w-full mt-1 p-2 rounded-md text-sm" rows="4"></textarea>
+                        </div>
+                        <button id="save-settings-btn" class="w-full p-2 rounded-md text-sm btn-action-yellow">Salvar Configurações</button>
+                    </div>
+                </div>
+                <hr class="border-border-color my-6">
+                <div class="mb-6">
+                    <h3 class="font-semibold text-text-secondary mb-3">MENSAGENS</h3>
+                    <div class="space-y-2">
+                        <div class="draggable" draggable="true" data-component-type="sent-message"><i class="fas fa-paper-plane neon-yellow-text"></i><span>Mensagem Enviada</span></div>
+                        <div class="draggable" draggable="true" data-component-type="image-message"><i class="fas fa-image neon-yellow-text"></i><span>Imagem</span></div>
+                        <div class="draggable" draggable="true" data-component-type="audio-message"><i class="fas fa-file-audio neon-yellow-text"></i><span>Áudio</span></div>
+                        <div class="draggable" draggable="true" data-component-type="video-message"><i class="fab fa-youtube neon-yellow-text"></i><span>Vídeo do YouTube</span></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-text-secondary mb-3">LÓGICA E AÇÕES</h3>
+                    <div class="space-y-2">
+                         <div class="draggable" draggable="true" data-component-type="ask-question"><i class="fas fa-question-circle neon-yellow-text"></i><span>Pergunta com Botões</span></div>
+                         <div class="draggable" draggable="true" data-component-type="user-input"><i class="fas fa-keyboard neon-yellow-text"></i><span>Campo de Resposta</span></div>
+                         <div class="draggable" draggable="true" data-component-type="cta-button"><i class="fas fa-mouse-pointer neon-yellow-text"></i><span>Botão (CTA)</span></div>
+                         <div class="draggable" draggable="true" data-component-type="delay"><i class="fas fa-clock neon-yellow-text"></i><span>Esperar (Delay)</span></div>
+                    </div>
+                </div>
+                <hr class="border-border-color my-6">
+                <div class="mb-6">
+                    <h3 class="font-semibold text-text-secondary mb-3">FERRAMENTAS</h3>
+                    <div class="space-y-2">
+                        <a href="https://catbox.moe" target="_blank" class="w-full p-2 rounded-md text-sm btn-action-yellow text-center flex items-center justify-center gap-2">
+                            <i class="fas fa-cloud-upload-alt"></i> Hospedar arquivos
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
             <!-- Área Central: Canvas do Funil -->
             <main class="flex-1 relative border-r border-border-color overflow-hidden">
                 <div id="flow-canvas" class="w-full h-full">

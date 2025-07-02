@@ -72,7 +72,7 @@
         .connector-point.output { right: -8px; transform: translateY(-50%); }
         .multi-output-container .connector-point.output { position: relative; right: 0; top: 0; transform: none; }
 
-        .leader-line { z-index: 5; }
+        .leader-line { z-index: 1; }
         .component-controls { display: none; }
         .canvas-component:hover .component-controls { display: flex; }
         
@@ -90,7 +90,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 15;
+            z-index: 20;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             transition: all 0.2s ease;
             transform: translate(-50%, -50%);
@@ -620,7 +620,7 @@
                  color: 'var(--accent-yellow)', size: 2, path: 'fluid',
                  startSocketGravity: 60, endSocketGravity: 60,
                  dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
-                 endPlug: 'behind'
+                 startPlug: 'behind', endPlug: 'behind'
              });
              
              // Criar botão de desconexão

@@ -584,11 +584,23 @@
             }
             
             getElementPosition(element) {
+                // Usar getBoundingClientRect para obter posição real do elemento
+                const rect = element.getBoundingClientRect();
+                const canvasRect = flowCanvas.getBoundingClientRect();
+                
+                // Calcular posição relativa ao canvas
+                const relativeX = rect.left - canvasRect.left;
+                const relativeY = rect.top - canvasRect.top;
+                
+                // Converter para coordenadas do SVG (considerando pan e zoom)
+                const svgX = (relativeX - panX) / zoom;
+                const svgY = (relativeY - panY) / zoom;
+                
                 return {
-                    x: parseFloat(element.style.left) || 0,
-                    y: parseFloat(element.style.top) || 0,
-                    width: element.offsetWidth,
-                    height: element.offsetHeight
+                    x: svgX,
+                    y: svgY,
+                    width: rect.width / zoom,
+                    height: rect.height / zoom
                 };
             }
             

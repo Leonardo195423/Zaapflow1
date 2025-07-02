@@ -94,14 +94,13 @@
         .connection-delete-btn {
             cursor: pointer;
             opacity: 0.7;
-            transition: all 0.2s ease;
+            transition: opacity 0.3s ease;
             pointer-events: auto;
             z-index: 10;
         }
         
         .connection-delete-btn:hover {
             opacity: 1;
-            transform: scale(1.1);
         }
         
         .connection-delete-circle {
@@ -109,6 +108,11 @@
             stroke: white;
             stroke-width: 1;
             pointer-events: auto;
+            transition: fill 0.3s ease;
+        }
+        
+        .connection-delete-btn:hover .connection-delete-circle {
+            fill: rgba(239, 68, 68, 1);
         }
         
         .connection-delete-text {

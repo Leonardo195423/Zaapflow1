@@ -519,6 +519,7 @@
                 // Verificar se a linha passa pela barra lateral (assumindo que ela tem 288px de largura)
                 const sidebarWidth = 288;
                 let pathData;
+                let midX, midY;
                 
                 if (startX < sidebarWidth && endX > sidebarWidth) {
                     // Linha passa pela barra lateral, criar curva que contorna
@@ -527,6 +528,11 @@
                     const controlX2 = sidebarWidth + 50;
                     const controlY2 = endY;
                     pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                    
+                    // Para curvas Bézier, calcular o ponto médio na curva
+                    const t = 0.5; // Meio da curva
+                    midX = Math.pow(1-t, 3) * startX + 3 * Math.pow(1-t, 2) * t * controlX1 + 3 * (1-t) * Math.pow(t, 2) * controlX2 + Math.pow(t, 3) * endX;
+                    midY = Math.pow(1-t, 3) * startY + 3 * Math.pow(1-t, 2) * t * controlY1 + 3 * (1-t) * Math.pow(t, 2) * controlY2 + Math.pow(t, 3) * endY;
                 } else {
                     // Criar curva suave normal
                     const controlX1 = startX + (endX - startX) * 0.5;
@@ -534,19 +540,23 @@
                     const controlX2 = startX + (endX - startX) * 0.5;
                     const controlY2 = endY;
                     pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                    
+                    // Para curvas Bézier simétricas, o ponto médio é mais simples
+                    midX = startX + (endX - startX) * 0.5;
+                    midY = startY + (endY - startY) * 0.5;
                 }
                 
                 this.path.setAttribute('d', pathData);
                 
-                // Posicionar botão delete no meio da linha
-                const midX = startX + (endX - startX) * 0.5;
-                const midY = startY + (endY - startY) * 0.5;
-                
                 // Garantir que o botão X não fique na barra lateral
                 const adjustedMidX = Math.max(midX, sidebarWidth + 20);
                 
-                this.deleteBtn.style.left = `${adjustedMidX}px`;
-                this.deleteBtn.style.top = `${midY}px`;
+                // Aplicar as transformações de zoom e pan para posicionar o botão corretamente
+                const transformedX = adjustedMidX * zoom + panX;
+                const transformedY = midY * zoom + panY;
+                
+                this.deleteBtn.style.left = `${transformedX}px`;
+                this.deleteBtn.style.top = `${transformedY}px`;
             }
             
             getElementPosition(element) {

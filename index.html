@@ -92,14 +92,6 @@
             vector-effect: non-scaling-stroke;
         }
         
-        .connection-delete-group {
-            transition: all 0.2s ease;
-        }
-        
-        .connection-delete-group:hover {
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
-        }
-        
         .component-controls { display: none; }
         .canvas-component:hover .component-controls { display: flex; }
         
@@ -478,49 +470,6 @@
                 this.path.classList.add('connection-line');
                 this.group.appendChild(this.path);
                 
-                // Criar botão de delete SVG nativo
-                this.deleteGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                this.deleteGroup.classList.add('connection-delete-group');
-                this.deleteGroup.style.cursor = 'pointer';
-                this.group.appendChild(this.deleteGroup);
-                
-                // Círculo de fundo do botão
-                this.deleteCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                this.deleteCircle.setAttribute('r', '12');
-                this.deleteCircle.setAttribute('fill', '#ff4444');
-                this.deleteCircle.setAttribute('stroke', '#fff');
-                this.deleteCircle.setAttribute('stroke-width', '2');
-                this.deleteCircle.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
-                this.deleteGroup.appendChild(this.deleteCircle);
-                
-                // Texto X do botão
-                this.deleteText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                this.deleteText.setAttribute('text-anchor', 'middle');
-                this.deleteText.setAttribute('dominant-baseline', 'central');
-                this.deleteText.setAttribute('fill', 'white');
-                this.deleteText.setAttribute('font-size', '14');
-                this.deleteText.setAttribute('font-weight', 'bold');
-                this.deleteText.setAttribute('font-family', 'Arial, sans-serif');
-                this.deleteText.textContent = '×';
-                this.deleteGroup.appendChild(this.deleteText);
-                
-                // Event listeners para o botão delete
-                this.deleteGroup.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.remove();
-                });
-                
-                this.deleteGroup.addEventListener('mouseenter', () => {
-                    this.deleteCircle.setAttribute('fill', '#ff6666');
-                    this.deleteGroup.style.transform = 'scale(1.1)';
-                    this.deleteGroup.style.transformOrigin = 'center';
-                });
-                
-                this.deleteGroup.addEventListener('mouseleave', () => {
-                    this.deleteCircle.setAttribute('fill', '#ff4444');
-                    this.deleteGroup.style.transform = 'scale(1)';
-                });
-                
                 this.updatePosition();
             }
             
@@ -555,32 +504,6 @@
                 }
                 
                 this.path.setAttribute('d', pathData);
-                
-                // Usar getPointAtLength() para obter o ponto exato no meio da linha
-                try {
-                    const pathLength = this.path.getTotalLength();
-                    const midPoint = this.path.getPointAtLength(pathLength / 2);
-                    
-                    // Garantir que o botão X não fique na barra lateral
-                    const adjustedMidX = Math.max(midPoint.x, sidebarWidth + 20);
-                    
-                    // Posicionar o botão delete SVG no ponto médio real da linha
-                    this.deleteCircle.setAttribute('cx', adjustedMidX);
-                    this.deleteCircle.setAttribute('cy', midPoint.y);
-                    this.deleteText.setAttribute('x', adjustedMidX);
-                    this.deleteText.setAttribute('y', midPoint.y);
-                } catch (error) {
-                    // Fallback caso getPointAtLength() falhe
-                    console.warn('Fallback para posicionamento do botão X:', error);
-                    const midX = startX + (endX - startX) * 0.5;
-                    const midY = startY + (endY - startY) * 0.5;
-                    const adjustedMidX = Math.max(midX, sidebarWidth + 20);
-                    
-                    this.deleteCircle.setAttribute('cx', adjustedMidX);
-                    this.deleteCircle.setAttribute('cy', midY);
-                    this.deleteText.setAttribute('x', adjustedMidX);
-                    this.deleteText.setAttribute('y', midY);
-                }
             }
             
             getElementPosition(element) {

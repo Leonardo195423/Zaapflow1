@@ -171,6 +171,9 @@
             padding: 8px 12px;
             border-radius: 4px;
             outline: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
         
         select:focus {
@@ -178,17 +181,22 @@
             box-shadow: 0 0 0 2px rgba(255, 210, 63, 0.2);
         }
         
-        select option {
+        select:hover {
+            border-color: var(--accent-yellow);
             background-color: var(--bg-tertiary);
-            color: var(--text-primary);
         }
         
-        select option:checked {
-            background-color: var(--accent-yellow);
-            color: #111;
+        select option {
+            background-color: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            padding: 8px 12px;
         }
+        
+        select option:checked,
+        select option:focus,
         select option:hover {
             background-color: var(--accent-yellow) !important;
+            background: var(--accent-yellow) !important;
             color: #111 !important;
         }
         input[type="color"] {

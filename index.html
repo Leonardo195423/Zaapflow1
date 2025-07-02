@@ -92,29 +92,12 @@
             vector-effect: non-scaling-stroke;
         }
         
-        .connection-delete-btn {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            background-color: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 15 !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        .connection-delete-group {
             transition: all 0.2s ease;
-            transform: translate(-50%, -50%);
-            pointer-events: auto;
         }
-        .connection-delete-btn:hover {
-            background-color: #ff6666;
-            transform: translate(-50%, -50%) scale(1.1);
+        
+        .connection-delete-group:hover {
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
         }
         
         .component-controls { display: none; }
@@ -485,23 +468,58 @@
                 this.endElement = endConnector.closest('.canvas-component');
                 this.startIndex = startConnector.dataset.outputIndex;
                 
+                // Criar grupo SVG para a conexão
+                this.group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                this.group.classList.add('connection-group');
+                connectionsSvg.appendChild(this.group);
+                
                 // Criar linha SVG
                 this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 this.path.classList.add('connection-line');
-                connectionsSvg.appendChild(this.path);
+                this.group.appendChild(this.path);
                 
-                // Criar botão de delete
-                this.deleteBtn = document.createElement('button');
-                this.deleteBtn.className = 'connection-delete-btn';
-                this.deleteBtn.innerHTML = '×';
-                this.deleteBtn.title = 'Remover conexão';
-                transformer.appendChild(this.deleteBtn);
+                // Criar botão de delete SVG nativo
+                this.deleteGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                this.deleteGroup.classList.add('connection-delete-group');
+                this.deleteGroup.style.cursor = 'pointer';
+                this.group.appendChild(this.deleteGroup);
                 
-                // Event listener para o botão delete
-                this.deleteBtn.onclick = (e) => {
+                // Círculo de fundo do botão
+                this.deleteCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                this.deleteCircle.setAttribute('r', '12');
+                this.deleteCircle.setAttribute('fill', '#ff4444');
+                this.deleteCircle.setAttribute('stroke', '#fff');
+                this.deleteCircle.setAttribute('stroke-width', '2');
+                this.deleteCircle.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+                this.deleteGroup.appendChild(this.deleteCircle);
+                
+                // Texto X do botão
+                this.deleteText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                this.deleteText.setAttribute('text-anchor', 'middle');
+                this.deleteText.setAttribute('dominant-baseline', 'central');
+                this.deleteText.setAttribute('fill', 'white');
+                this.deleteText.setAttribute('font-size', '14');
+                this.deleteText.setAttribute('font-weight', 'bold');
+                this.deleteText.setAttribute('font-family', 'Arial, sans-serif');
+                this.deleteText.textContent = '×';
+                this.deleteGroup.appendChild(this.deleteText);
+                
+                // Event listeners para o botão delete
+                this.deleteGroup.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.remove();
-                };
+                });
+                
+                this.deleteGroup.addEventListener('mouseenter', () => {
+                    this.deleteCircle.setAttribute('fill', '#ff6666');
+                    this.deleteGroup.style.transform = 'scale(1.1)';
+                    this.deleteGroup.style.transformOrigin = 'center';
+                });
+                
+                this.deleteGroup.addEventListener('mouseleave', () => {
+                    this.deleteCircle.setAttribute('fill', '#ff4444');
+                    this.deleteGroup.style.transform = 'scale(1)';
+                });
                 
                 this.updatePosition();
             }
@@ -551,10 +569,12 @@
                 // Garantir que o botão X não fique na barra lateral
                 const adjustedMidX = Math.max(midX, sidebarWidth + 20);
                 
-                // Posicionar o botão X diretamente nas coordenadas do canvas
-                // O transformer já aplica as transformações de zoom e pan
-                this.deleteBtn.style.left = `${adjustedMidX}px`;
-                this.deleteBtn.style.top = `${midY}px`;
+                // Posicionar o botão delete SVG no meio da linha
+                // Como é um elemento SVG nativo, ele herda automaticamente as transformações
+                this.deleteCircle.setAttribute('cx', adjustedMidX);
+                this.deleteCircle.setAttribute('cy', midY);
+                this.deleteText.setAttribute('x', adjustedMidX);
+                this.deleteText.setAttribute('y', midY);
             }
             
             getElementPosition(element) {
@@ -567,11 +587,8 @@
             }
             
             remove() {
-                if (this.path && this.path.parentNode) {
-                    this.path.parentNode.removeChild(this.path);
-                }
-                if (this.deleteBtn && this.deleteBtn.parentNode) {
-                    this.deleteBtn.parentNode.removeChild(this.deleteBtn);
+                if (this.group && this.group.parentNode) {
+                    this.group.parentNode.removeChild(this.group);
                 }
                 
                 const index = connections.indexOf(this);
@@ -584,7 +601,7 @@
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
             
-            // Atualizar todas as conexões e seus botões de delete
+            // Atualizar posições das conexões (as transformações SVG são herdadas automaticamente)
             connections.forEach(conn => {
                 conn.updatePosition();
             });

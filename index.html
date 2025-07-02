@@ -633,19 +633,24 @@
              const updateDeleteBtnPosition = () => {
                  const startRect = startConnector.getBoundingClientRect();
                  const endRect = endConnector.getBoundingClientRect();
-                 const transformerRect = transformer.getBoundingClientRect();
+                 const canvasRect = flowCanvas.getBoundingClientRect();
                  
-                 // Calcular posição relativa ao transformer
-                 const startX = startRect.left + startRect.width/2 - transformerRect.left;
-                 const startY = startRect.top + startRect.height/2 - transformerRect.top;
-                 const endX = endRect.left + endRect.width/2 - transformerRect.left;
-                 const endY = endRect.top + endRect.height/2 - transformerRect.top;
+                 // Calcular posição no espaço do canvas
+                 const startX = (startRect.left + startRect.width/2 - canvasRect.left);
+                 const startY = (startRect.top + startRect.height/2 - canvasRect.top);
+                 const endX = (endRect.left + endRect.width/2 - canvasRect.left);
+                 const endY = (endRect.top + endRect.height/2 - canvasRect.top);
                  
+                 // Calcular ponto médio
                  const midX = (startX + endX) / 2;
                  const midY = (startY + endY) / 2;
                  
-                 deleteBtn.style.left = `${midX}px`;
-                 deleteBtn.style.top = `${midY}px`;
+                 // Converter para coordenadas do transformer (considerando zoom e pan)
+                 const transformedX = (midX - panX) / zoom;
+                 const transformedY = (midY - panY) / zoom;
+                 
+                 deleteBtn.style.left = `${transformedX}px`;
+                 deleteBtn.style.top = `${transformedY}px`;
              };
              
              // Adicionar o botão ao transformer

@@ -79,6 +79,7 @@
             height: 100%;
             pointer-events: none;
             z-index: 1 !important;
+            overflow: visible;
         }
         
         .connection-line {
@@ -87,6 +88,7 @@
             fill: none;
             filter: drop-shadow(0 0 6px var(--accent-yellow-glow));
             z-index: 1 !important;
+            vector-effect: non-scaling-stroke;
         }
         
         .connection-delete-btn {
@@ -501,6 +503,16 @@
                 };
                 
                 this.updatePosition();
+                this.updateSVGViewBox();
+            }
+            
+            updateSVGViewBox() {
+                // Calcular dimensões necessárias para o SVG
+                const canvasRect = flowCanvas.getBoundingClientRect();
+                const maxDimension = Math.max(canvasRect.width, canvasRect.height) * 3; // Margem extra
+                connectionsSvg.setAttribute('viewBox', `${-maxDimension/2} ${-maxDimension/2} ${maxDimension} ${maxDimension}`);
+                connectionsSvg.setAttribute('width', maxDimension);
+                connectionsSvg.setAttribute('height', maxDimension);
             }
             
             updatePosition() {
@@ -556,6 +568,16 @@
 
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            
+            // Atualizar viewBox do SVG para garantir que as linhas sejam sempre visíveis
+            const canvasRect = flowCanvas.getBoundingClientRect();
+            const maxDimension = Math.max(canvasRect.width, canvasRect.height) * 4 / zoom; // Ajustar com base no zoom
+            const offsetX = -panX / zoom;
+            const offsetY = -panY / zoom;
+            connectionsSvg.setAttribute('viewBox', `${offsetX - maxDimension/2} ${offsetY - maxDimension/2} ${maxDimension} ${maxDimension}`);
+            connectionsSvg.setAttribute('width', canvasRect.width);
+            connectionsSvg.setAttribute('height', canvasRect.height);
+            
             // Atualizar todas as conexões
             connections.forEach(conn => conn.updatePosition());
         };
@@ -1290,6 +1312,20 @@
             // Recriar o SVG de conexões
             const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             newSvg.id = 'connections-svg';
+            
+            // Configurar dimensões iniciais do SVG
+            const canvasRect = flowCanvas.getBoundingClientRect();
+            const maxDimension = Math.max(canvasRect.width, canvasRect.height) * 4;
+            newSvg.setAttribute('viewBox', `${-maxDimension/2} ${-maxDimension/2} ${maxDimension} ${maxDimension}`);
+            newSvg.setAttribute('width', canvasRect.width);
+            newSvg.setAttribute('height', canvasRect.height);
+            newSvg.style.position = 'absolute';
+            newSvg.style.top = '0';
+            newSvg.style.left = '0';
+            newSvg.style.pointerEvents = 'none';
+            newSvg.style.zIndex = '1';
+            newSvg.style.overflow = 'visible';
+            
             newSvg.innerHTML = `
                 <defs>
                     <filter id="glow">
@@ -1302,6 +1338,9 @@
                 </defs>
             `;
             transformer.appendChild(newSvg);
+            
+            // Atualizar referência global
+            connectionsSvg = newSvg;
             
             // Limpar conexões existentes
             connections.forEach(conn => conn.remove());

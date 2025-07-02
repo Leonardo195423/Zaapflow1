@@ -12,8 +12,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Biblioteca para as linhas de conexão -->
-    <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js"></script>
     <!-- Biblioteca para criar arquivos ZIP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
@@ -72,13 +70,27 @@
         .connector-point.output { right: -8px; transform: translateY(-50%); }
         .multi-output-container .connector-point.output { position: relative; right: 0; top: 0; transform: none; }
 
-        .leader-line { z-index: 1 !important; }
-        .component-controls { display: none; }
-        .canvas-component:hover .component-controls { display: flex; }
-        .canvas-component { z-index: 10; }
+        /* Sistema de conexões SVG customizado */
+        #connections-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1 !important;
+        }
+        
+        .connection-line {
+            stroke: var(--accent-yellow);
+            stroke-width: 2;
+            fill: none;
+            filter: drop-shadow(0 0 6px var(--accent-yellow-glow));
+            z-index: 1 !important;
+        }
         
         .connection-delete-btn {
-            position: fixed;
+            position: absolute;
             width: 20px;
             height: 20px;
             background-color: #ff4444;
@@ -91,7 +103,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9999 !important;
+            z-index: 15 !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             transition: all 0.2s ease;
             transform: translate(-50%, -50%);
@@ -101,6 +113,9 @@
             background-color: #ff6666;
             transform: translate(-50%, -50%) scale(1.1);
         }
+        
+        .component-controls { display: none; }
+        .canvas-component:hover .component-controls { display: flex; }
         
         .modal-backdrop {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -304,7 +319,20 @@
             <!-- Área Central: Canvas do Funil -->
             <main class="flex-1 relative border-r border-border-color overflow-hidden">
                 <div id="flow-canvas" class="w-full h-full">
-                    <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;"></div>
+                    <div id="flow-transformer" class="w-full h-full" style="transform-origin: 0 0;">
+                        <!-- SVG para conexões customizadas -->
+                        <svg id="connections-svg" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                    <feMerge> 
+                                        <feMergeNode in="coloredBlur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                        </svg>
+                    </div>
                 </div>
                 <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
                     <button id="zoom-in-btn" class="w-10 h-10 bg-tertiary rounded-md flex items-center justify-center text-lg hover:bg-opacity-80"><i class="fas fa-plus"></i></button>
@@ -410,6 +438,7 @@
         // --- LÓGICA DO CONSTRUTOR DE FUNIL ---
         const flowCanvas = document.getElementById('flow-canvas');
         const transformer = document.getElementById('flow-transformer');
+        const connectionsSvg = document.getElementById('connections-svg');
         const modal = document.getElementById('edit-modal');
         const toast = document.getElementById('toast-notification');
         
@@ -444,58 +473,91 @@
             }, 3000);
         };
 
-        const forceLinesBehind = () => {
-            const svgElements = document.querySelectorAll('svg[class*="leader-line"]');
-            svgElements.forEach(svg => {
-                svg.style.setProperty('z-index', '1', 'important');
-                svg.style.position = 'absolute';
-                // Forçar também nos elementos filhos
-                const paths = svg.querySelectorAll('path');
-                paths.forEach(path => {
-                    path.style.setProperty('z-index', '1', 'important');
-                });
-            });
-        };
-
-        // Observer para monitorar mudanças no DOM e forçar z-index
-        const observer = new MutationObserver((mutations) => {
-            let shouldForce = false;
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1 && (
-                            node.tagName === 'SVG' || 
-                            node.classList?.contains('leader-line') ||
-                            node.querySelector?.('svg[class*="leader-line"]')
-                        )) {
-                            shouldForce = true;
-                        }
-                    });
-                }
-            });
-            if (shouldForce) {
-                setTimeout(forceLinesBehind, 0);
+        // Sistema de conexões SVG customizado
+        class CustomConnection {
+            constructor(startConnector, endConnector) {
+                this.startConnector = startConnector;
+                this.endConnector = endConnector;
+                this.startElement = startConnector.closest('.canvas-component');
+                this.endElement = endConnector.closest('.canvas-component');
+                this.startIndex = startConnector.dataset.outputIndex;
+                
+                // Criar linha SVG
+                this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                this.path.classList.add('connection-line');
+                connectionsSvg.appendChild(this.path);
+                
+                // Criar botão de delete
+                this.deleteBtn = document.createElement('button');
+                this.deleteBtn.className = 'connection-delete-btn';
+                this.deleteBtn.innerHTML = '×';
+                this.deleteBtn.title = 'Remover conexão';
+                transformer.appendChild(this.deleteBtn);
+                
+                // Event listener para o botão delete
+                this.deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.remove();
+                };
+                
+                this.updatePosition();
             }
-        });
-
-        // Iniciar observação
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+            
+            updatePosition() {
+                const startRect = this.getElementPosition(this.startElement);
+                const endRect = this.getElementPosition(this.endElement);
+                
+                // Pontos de conexão
+                const startX = startRect.x + startRect.width;
+                const startY = startRect.y + startRect.height / 2;
+                const endX = endRect.x;
+                const endY = endRect.y + endRect.height / 2;
+                
+                // Criar curva suave
+                const controlX1 = startX + (endX - startX) * 0.5;
+                const controlY1 = startY;
+                const controlX2 = startX + (endX - startX) * 0.5;
+                const controlY2 = endY;
+                
+                const pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                this.path.setAttribute('d', pathData);
+                
+                // Posicionar botão delete no meio da linha
+                const midX = startX + (endX - startX) * 0.5;
+                const midY = startY + (endY - startY) * 0.5;
+                
+                this.deleteBtn.style.left = `${midX}px`;
+                this.deleteBtn.style.top = `${midY}px`;
+            }
+            
+            getElementPosition(element) {
+                return {
+                    x: parseFloat(element.style.left) || 0,
+                    y: parseFloat(element.style.top) || 0,
+                    width: element.offsetWidth,
+                    height: element.offsetHeight
+                };
+            }
+            
+            remove() {
+                if (this.path && this.path.parentNode) {
+                    this.path.parentNode.removeChild(this.path);
+                }
+                if (this.deleteBtn && this.deleteBtn.parentNode) {
+                    this.deleteBtn.parentNode.removeChild(this.deleteBtn);
+                }
+                
+                const index = connections.indexOf(this);
+                if (index > -1) {
+                    connections.splice(index, 1);
+                }
+            }
+        }
 
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            connections.forEach(c => {
-                c.line.position();
-                if (c.updateDeleteBtnPosition) {
-                    c.updateDeleteBtnPosition();
-                }
-            });
-            // Forçar linhas atrás dos elementos após transformações - múltiplas tentativas
-            setTimeout(forceLinesBehind, 0);
-            setTimeout(forceLinesBehind, 10);
-            setTimeout(forceLinesBehind, 50);
+            // Atualizar todas as conexões
+            connections.forEach(conn => conn.updatePosition());
         };
 
         flowCanvas.addEventListener('wheel', e => {
@@ -631,29 +693,47 @@
             element.querySelector('.edit').onclick = () => openEditModal(element);
         }
 
+        // Sistema de desenho de conexões
         flowCanvas.addEventListener('mousedown', e => {
             if (e.target.classList.contains('output')) {
                 startElementForLine = e.target;
-                currentDrawingLine = new LeaderLine(e.target, LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }), {
-                    color: 'rgba(255, 210, 63, 0.7)', size: 2, endPlug: 'behind'
-                });
+                // Criar linha temporária para visualização
+                currentDrawingLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                currentDrawingLine.setAttribute('stroke', 'rgba(255, 210, 63, 0.7)');
+                currentDrawingLine.setAttribute('stroke-width', '2');
+                currentDrawingLine.setAttribute('fill', 'none');
+                connectionsSvg.appendChild(currentDrawingLine);
             }
         });
 
         document.addEventListener('mousemove', e => { 
-            if (currentDrawingLine) {
-                currentDrawingLine.position();
-                currentDrawingLine.setOptions({ end: LeaderLine.pointAnchor(document.body, { x: e.clientX, y: e.clientY }) });
+            if (currentDrawingLine && startElementForLine) {
+                const rect = flowCanvas.getBoundingClientRect();
+                const canvasX = (e.clientX - rect.left - panX) / zoom;
+                const canvasY = (e.clientY - rect.top - panY) / zoom;
+                
+                const startElement = startElementForLine.closest('.canvas-component');
+                const startRect = {
+                    x: parseFloat(startElement.style.left) || 0,
+                    y: parseFloat(startElement.style.top) || 0,
+                    width: startElement.offsetWidth,
+                    height: startElement.offsetHeight
+                };
+                
+                const startX = startRect.x + startRect.width;
+                const startY = startRect.y + startRect.height / 2;
+                
+                const pathData = `M ${startX} ${startY} L ${canvasX} ${canvasY}`;
+                currentDrawingLine.setAttribute('d', pathData);
             }
         });
         
         document.addEventListener('mouseup', e => {
             if (currentDrawingLine) {
-                currentDrawingLine.hide();
-                const endElement = e.target.closest('.canvas-component');
                 currentDrawingLine.remove();
                 currentDrawingLine = null;
                 
+                const endElement = e.target.closest('.canvas-component');
                 if (endElement && endElement !== startElementForLine.closest('.canvas-component') && e.target.classList.contains('input')) {
                     createConnection(startElementForLine, e.target);
                 }
@@ -662,116 +742,24 @@
         });
 
         function createConnection(startConnector, endConnector) {
-             const line = new LeaderLine(startConnector, endConnector, {
-                 color: 'var(--accent-yellow)', size: 2, path: 'fluid',
-                 startSocketGravity: 60, endSocketGravity: 60,
-                 dropShadow: { color: 'var(--accent-yellow-glow)', dx: 0, dy: 0, blur: 6 },
-                 startPlug: 'behind', endPlug: 'behind'
-             });
-             
-             // Forçar z-index baixo no SVG da LeaderLine - múltiplas tentativas
-             setTimeout(() => {
-                 forceLinesBehind();
-             }, 0);
-             setTimeout(() => {
-                 forceLinesBehind();
-             }, 10);
-             setTimeout(() => {
-                 forceLinesBehind();
-             }, 50);
-             setTimeout(() => {
-                 forceLinesBehind();
-             }, 100);
-             
-             // Criar botão de desconexão
-             const deleteBtn = document.createElement('button');
-             deleteBtn.className = 'connection-delete-btn';
-             deleteBtn.innerHTML = '×';
-             deleteBtn.title = 'Remover conexão';
-             
-             // Posicionar o botão no meio da linha
-             const updateDeleteBtnPosition = () => {
-                 // Calcular posição diretamente dos elementos sem considerar transformações
-                 const startElement = startConnector.closest('.canvas-component');
-                 const endElement = endConnector.closest('.canvas-component');
-                 
-                 const startX = parseFloat(startElement.style.left) + startElement.offsetWidth;
-                 const startY = parseFloat(startElement.style.top) + startElement.offsetHeight / 2;
-                 const endX = parseFloat(endElement.style.left);
-                 const endY = parseFloat(endElement.style.top) + endElement.offsetHeight / 2;
-                 
-                 // Ponto médio da linha
-                 const midX = (startX + endX) / 2;
-                 const midY = (startY + endY) / 2;
-                 
-                 // Aplicar transformações do canvas
-                 const transformedX = midX * zoom + panX;
-                 const transformedY = midY * zoom + panY;
-                 
-                 // Posicionar o botão
-                 deleteBtn.style.left = `${transformedX}px`;
-                 deleteBtn.style.top = `${transformedY}px`;
-             };
-             
-             // Adicionar o botão ao body para position fixed
-             document.body.appendChild(deleteBtn);
-             updateDeleteBtnPosition();
-             
-             const connectionObj = { 
-                 line, 
-                 start: startConnector.closest('.canvas-component'), 
-                 end: endConnector.closest('.canvas-component'), 
-                 startIndex: startConnector.dataset.outputIndex,
-                 deleteBtn: deleteBtn,
-                 updateDeleteBtnPosition: updateDeleteBtnPosition
-             };
-             
-             // Evento de clique para remover a conexão
-             deleteBtn.onclick = (e) => {
-                 e.stopPropagation();
-                 removeConnection(connectionObj);
-             };
-             
-             connections.push(connectionObj);
+            const connection = new CustomConnection(startConnector, endConnector);
+            connections.push(connection);
+            return connection;
         }
 
         function updateConnectionsForElement(element) { 
             connections.forEach(conn => { 
-                if (conn.start === element || conn.end === element) {
-                    conn.line.position();
-                    if (conn.updateDeleteBtnPosition) {
-                        conn.updateDeleteBtnPosition();
-                    }
+                if (conn.startElement === element || conn.endElement === element) {
+                    conn.updatePosition();
                 }
             }); 
         }
         
-        function removeConnection(connectionObj) {
-            // Remover a linha
-            connectionObj.line.remove();
-            
-            // Remover o botão de desconexão do body
-            if (connectionObj.deleteBtn && connectionObj.deleteBtn.parentNode) {
-                document.body.removeChild(connectionObj.deleteBtn);
-            }
-            
-            // Remover da lista de conexões
-            const index = connections.indexOf(connectionObj);
-            if (index > -1) {
-                connections.splice(index, 1);
-            }
-        }
-        
         function removeConnectionsForElement(element) {
-            const remaining = [];
-            connections.forEach(conn => {
-                if (conn.start === element || conn.end === element) {
-                    removeConnection(conn);
-                } else {
-                    remaining.push(conn);
-                }
-            });
-            connections = remaining;
+            const toRemove = connections.filter(conn => 
+                conn.startElement === element || conn.endElement === element
+            );
+            toRemove.forEach(conn => conn.remove());
         }
 
         function updatePreview(chatBody) {
@@ -1241,8 +1229,8 @@
             }));
 
             const connectionsData = connections.map(conn => ({
-                startId: conn.start.id,
-                endId: conn.end.id,
+                startId: conn.startElement.id,
+                endId: conn.endElement.id,
                 startIndex: conn.startIndex
             }));
             
@@ -1299,12 +1287,24 @@
 
         function loadFlow(flowData) {
             transformer.innerHTML = '';
-            connections.forEach(conn => {
-                conn.line.remove();
-                if (conn.deleteBtn && conn.deleteBtn.parentNode) {
-                    document.body.removeChild(conn.deleteBtn);
-                }
-            });
+            // Recriar o SVG de conexões
+            const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            newSvg.id = 'connections-svg';
+            newSvg.innerHTML = `
+                <defs>
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge> 
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+            `;
+            transformer.appendChild(newSvg);
+            
+            // Limpar conexões existentes
+            connections.forEach(conn => conn.remove());
             connections = [];
 
             if (flowData.settings) {

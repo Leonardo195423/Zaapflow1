@@ -551,12 +551,10 @@
                 // Garantir que o botão X não fique na barra lateral
                 const adjustedMidX = Math.max(midX, sidebarWidth + 20);
                 
-                // Aplicar as transformações de zoom e pan para posicionar o botão corretamente
-                const transformedX = adjustedMidX * zoom + panX;
-                const transformedY = midY * zoom + panY;
-                
-                this.deleteBtn.style.left = `${transformedX}px`;
-                this.deleteBtn.style.top = `${transformedY}px`;
+                // Posicionar o botão X diretamente nas coordenadas do canvas
+                // O transformer já aplica as transformações de zoom e pan
+                this.deleteBtn.style.left = `${adjustedMidX}px`;
+                this.deleteBtn.style.top = `${midY}px`;
             }
             
             getElementPosition(element) {
@@ -586,8 +584,10 @@
         const applyTransform = () => {
             transformer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
             
-            // Atualizar todas as conexões
-            connections.forEach(conn => conn.updatePosition());
+            // Atualizar todas as conexões e seus botões de delete
+            connections.forEach(conn => {
+                conn.updatePosition();
+            });
         };
 
         flowCanvas.addEventListener('wheel', e => {

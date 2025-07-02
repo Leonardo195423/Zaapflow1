@@ -1228,8 +1228,6 @@
 
         async function runFlowTest() {
             const testBtn = document.getElementById('test-flow-btn');
-            testBtn.disabled = true;
-            testBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Testando...`;
 
             try {
                 const flowData = getFlowData();
@@ -1398,9 +1396,6 @@
             } catch (error) {
                 console.error("Erro ao testar o fluxo:", error);
                 showToast("Ocorreu um erro ao testar o fluxo.");
-            } finally {
-                testBtn.disabled = false;
-                testBtn.innerHTML = `<i class="fas fa-play"></i> Testar Fluxo`;
             }
         }
 

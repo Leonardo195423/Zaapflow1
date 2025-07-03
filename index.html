@@ -15,6 +15,104 @@
     <!-- Biblioteca para criar arquivos ZIP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
+    <!-- Sistema de Proteção Anti-Cópia -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // HTML "isca" - o que aparece no código fonte
+        const decoyHTML = `
+        <!DOCTYPE html>
+        <html lang="pt-br">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Página Protegida</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+                .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .warning { color: #e74c3c; font-size: 18px; margin-bottom: 20px; }
+                .info { color: #666; line-height: 1.6; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>⚠️ Conteúdo Protegido</h1>
+                <p class="warning">Este conteúdo está protegido contra cópia não autorizada.</p>
+                <p class="info">O código fonte que você está visualizando é apenas uma versão simplificada. O conteúdo real é gerado dinamicamente e não pode ser copiado através do código fonte.</p>
+                <p class="info">Para acessar o conteúdo completo, visite a página normalmente através do navegador.</p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #999;">© 2025 - Todos os direitos reservados</p>
+            </div>
+        </body>
+        </html>`;
+        
+        // Detectar se está sendo executado em contexto normal ou como código fonte
+        let isNormalExecution = true;
+        
+        try {
+            // Verificações para detectar visualização de código fonte
+            if (typeof window === 'undefined' || 
+                typeof document === 'undefined' || 
+                !window.location || 
+                window.location.protocol === 'view-source:' ||
+                document.readyState === 'loading' && !document.body) {
+                isNormalExecution = false;
+            }
+            
+            // Verificar se JavaScript está sendo executado normalmente
+            if (isNormalExecution) {
+                const testDiv = document.createElement('div');
+                if (!testDiv || typeof testDiv.style === 'undefined') {
+                    isNormalExecution = false;
+                }
+            }
+        } catch (e) {
+            isNormalExecution = false;
+        }
+        
+        // Se não for execução normal, substituir o HTML
+        if (!isNormalExecution) {
+            if (typeof document !== 'undefined' && document.write) {
+                document.write(decoyHTML);
+            }
+            return;
+        }
+        
+        // Proteção adicional: substituir HTML se detectar tentativas de cópia
+        const protectHTML = () => {
+            // Detectar se DevTools estão abertas (método mais sutil)
+            let devtools = false;
+            const threshold = 160;
+            
+            if (window.outerHeight - window.innerHeight > threshold || 
+                window.outerWidth - window.innerWidth > threshold) {
+                devtools = true;
+            }
+            
+            // Se DevTools detectadas, não fazer nada drástico, apenas log
+            if (devtools) {
+                console.clear();
+                console.log('%c⚠️ Conteúdo Protegido', 'color: #e74c3c; font-size: 16px; font-weight: bold;');
+                console.log('%cEste conteúdo está protegido contra cópia não autorizada.', 'color: #666; font-size: 12px;');
+            }
+        };
+        
+        // Monitorar tentativas de acesso ao código
+        setInterval(protectHTML, 1000);
+        
+        // Interceptar tentativas de salvar página
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                console.log('Tentativa de salvar página bloqueada');
+                return false;
+            }
+        });
+        
+    })();
+    </script>
+
     <style>
         :root {
             --bg-main: #111111; --bg-secondary: #1C1C1C; --bg-tertiary: #2A2A2A;
@@ -22,7 +120,11 @@
             --accent-yellow: #FFD23F; --accent-yellow-dark: #F8B700;
             --accent-yellow-glow: rgba(255, 210, 63, 0.5); --shadow-color: rgba(0, 0, 0, 0.5);
         }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-primary); }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-main); 
+            color: var(--text-primary);
+        }
         
         #flow-canvas {
             background-color: var(--bg-main);
@@ -277,6 +379,35 @@
         #toast-notification.show {
             transform: translate(-50%, 0);
         }
+
+        /* Medidas de segurança adicionais */
+        /* Removidas as regras globais que impediam o drag-and-drop e seleção */
+        
+        /* Permitir seleção apenas em inputs necessários */
+        input[type="text"], input[type="password"], input[type="number"], textarea {
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
+        }
+
+        /* Desabilitar arrastar imagens */
+        img {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+            /* pointer-events: none; */ /* Removido para permitir arrastar imagens se necessário */
+        }
+
+        /* Ocultar texto quando selecionado */
+        ::selection {
+            background: transparent;
+        }
+        ::-moz-selection {
+            background: transparent;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -439,6 +570,115 @@
     <div id="toast-notification">Mensagem aqui</div>
 
     <script>
+    // === MEDIDAS DE SEGURANÇA APRIMORADAS ===
+    (function() {
+        'use strict';
+        
+        // Desabilitar botão direito do mouse
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, true);
+
+        // Desabilitar atalhos de teclado perigosos
+        document.addEventListener('keydown', function(e) {
+            // F12 (DevTools)
+            if (e.keyCode === 123) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            
+            // Ctrl+Shift+I (DevTools)
+            if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            
+            // Ctrl+Shift+J (Console)
+            if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            
+            // Ctrl+U (View Source)
+            if (e.ctrlKey && e.keyCode === 85) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            
+            // Ctrl+S (Save Page) - Já implementado acima, mas reforçando
+            if (e.ctrlKey && e.keyCode === 83) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true);
+
+        // Proteção adicional contra cópia do DOM
+        const protectDOM = () => {
+            // Ofuscar atributos importantes
+            const sensitiveElements = document.querySelectorAll('[data-component-type], .canvas-component, #flow-canvas');
+            sensitiveElements.forEach(el => {
+                if (el.dataset) {
+                    // Criar cópia dos dados importantes
+                    const originalData = {...el.dataset};
+                    // Limpar datasets visíveis
+                    Object.keys(el.dataset).forEach(key => {
+                        if (key.startsWith('component') || key.includes('text') || key.includes('url')) {
+                            el.dataset[key] = btoa(el.dataset[key]); // Base64 encode
+                        }
+                    });
+                    // Armazenar dados originais em propriedade oculta
+                    el._originalData = originalData;
+                }
+            });
+        };
+
+        // Interceptar tentativas de acesso ao innerHTML/outerHTML
+        const originalInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+        const originalOuterHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'outerHTML');
+        
+        Object.defineProperty(Element.prototype, 'innerHTML', {
+            get: function() {
+                // Se for uma tentativa de acessar o HTML de elementos sensíveis, retornar versão ofuscada
+                if (this.classList && (this.classList.contains('canvas-component') || this.id === 'flow-canvas')) {
+                    return '<div><!-- Conteúdo protegido --></div>';
+                }
+                return originalInnerHTML.get.call(this);
+            },
+            set: originalInnerHTML.set
+        });
+
+        Object.defineProperty(Element.prototype, 'outerHTML', {
+            get: function() {
+                // Se for uma tentativa de acessar o HTML de elementos sensíveis, retornar versão ofuscada
+                if (this.classList && (this.classList.contains('canvas-component') || this.id === 'flow-canvas')) {
+                    return '<div><!-- Conteúdo protegido --></div>';
+                }
+                return originalOuterHTML.get.call(this);
+            },
+            set: originalOuterHTML.set
+        });
+
+        // Executar proteções após carregamento
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', protectDOM);
+        } else {
+            protectDOM();
+        }
+
+        // Limpar console periodicamente
+        setInterval(function() {
+            console.clear();
+        }, 2000);
+
+    })();
+
     document.addEventListener('DOMContentLoaded', () => {
         // --- LÓGICA DE LOGIN E LOGOUT ---
         const loginOverlay = document.getElementById('login-overlay');
@@ -594,7 +834,8 @@
                 if (this.startConnector.dataset.outputIndex !== undefined) {
                     // Para conectores com índice específico (ask-question), calcular posição exata
                     const connectorRect = this.getConnectorPosition(this.startConnector);
-                    startX = connectorRect.x + connectorRect.width / 2;
+                    // Ajustar para sair do centro direito do conector
+                    startX = connectorRect.x + connectorRect.width;
                     startY = connectorRect.y + connectorRect.height / 2;
                 } else {
                     // Para conectores simples, usar posição padrão

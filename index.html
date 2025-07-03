@@ -904,13 +904,11 @@
                     
                     if (endElement && startElement && endElement !== startElement) {
                         // Verificar se já existe uma conexão para este input
-                        const existingConnection = connections.find(conn => 
-                            conn.endElement === endElement
-                        );
-                        
-                        if (existingConnection) {
-                            existingConnection.remove();
-                        }
+                        // Remover a lógica que impede múltiplas conexões de saída para o mesmo input
+                        // Apenas permitir que um input tenha uma conexão de entrada
+                        // if (existingConnection) {
+                        //     existingConnection.remove();
+                        // }
                         
                         createConnection(startElementForLine, e.target);
                     }
@@ -989,7 +987,9 @@
                     break;
                 case 'ask-question':
                     formHTML = `<label class="block text-sm font-medium text-text-secondary mb-2">Texto da Pergunta</label><textarea id="text-input" class="w-full p-2 rounded-md" rows="3">${element.dataset.text}</textarea>
-                                <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">Botões (um por linha)</label><textarea id="buttons-input" class="w-full p-2 rounded-md" rows="3">${element.dataset.buttons.split(';').join('\n')}</textarea>`;
+                                <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">Opções de Resposta</label>
+                                <div id="buttons-container" class="space-y-2 mb-3"></div>
+                                <button type="button" id="add-button-option" class="w-full p-2 rounded-md text-sm bg-tertiary hover:bg-opacity-70 border border-border-color">+ Adicionar Opção</button>`;
                     hasVariableButton = true;
                     break;
                 case 'delay':
@@ -1036,6 +1036,49 @@
 
             modalBody.innerHTML = formHTML;
             
+            // Configuração especial para ask-question
+            if (type === 'ask-question') {
+                const buttonsContainer = modalBody.querySelector('#buttons-container');
+                const addButtonBtn = modalBody.querySelector('#add-button-option');
+                
+                // Função para criar um campo de opção
+                const createButtonField = (text = '', index) => {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'flex gap-2 items-center';
+                    fieldDiv.innerHTML = `
+                        <input type="text" class="button-option-input flex-1 p-2 rounded-md text-sm" placeholder="Digite a opção..." value="${text}">
+                        <button type="button" class="remove-button-option px-2 py-1 rounded-md text-xs bg-red-600 hover:bg-red-700 text-white">×</button>
+                    `;
+                    
+                    // Event listener para remover opção
+                    fieldDiv.querySelector('.remove-button-option').onclick = () => {
+                        if (buttonsContainer.children.length > 1) { // Manter pelo menos uma opção
+                            fieldDiv.remove();
+                        }
+                    };
+                    
+                    return fieldDiv;
+                };
+                
+                // Carregar opções existentes
+                const existingButtons = element.dataset.buttons.split(';').filter(b => b.trim());
+                existingButtons.forEach((buttonText, index) => {
+                    buttonsContainer.appendChild(createButtonField(buttonText, index));
+                });
+                
+                // Se não há opções, adicionar uma vazia
+                if (existingButtons.length === 0) {
+                    buttonsContainer.appendChild(createButtonField('', 0));
+                }
+                
+                // Event listener para adicionar nova opção
+                addButtonBtn.onclick = () => {
+                    const newField = createButtonField('', buttonsContainer.children.length);
+                    buttonsContainer.appendChild(newField);
+                    newField.querySelector('.button-option-input').focus();
+                };
+            }
+            
             if (hasVariableButton) {
                 modalBody.querySelectorAll('.insert-variable-btn').forEach(btn => {
                     btn.onclick = () => {
@@ -1060,7 +1103,9 @@
                     break;
                 case 'ask-question':
                     elementToEdit.dataset.text = modal.querySelector('#text-input').value;
-                    const buttons = modal.querySelector('#buttons-input').value.split('\n').filter(b => b);
+                    // Coletar todas as opções dos campos dinâmicos
+                    const buttonInputs = modal.querySelectorAll('.button-option-input');
+                    const buttons = Array.from(buttonInputs).map(input => input.value.trim()).filter(text => text);
                     elementToEdit.dataset.buttons = buttons.join(';');
                     displayText = elementToEdit.dataset.text;
                     let buttonOutputsHTML = '';

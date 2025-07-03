@@ -588,9 +588,20 @@
                 const startRect = this.getElementPosition(this.startElement);
                 const endRect = this.getElementPosition(this.endElement);
                 
-                // Pontos de conexão
-                const startX = startRect.x + startRect.width;
-                const startY = startRect.y + startRect.height / 2;
+                // Calcular posição específica do conector de saída
+                let startX, startY;
+                
+                if (this.startConnector.dataset.outputIndex !== undefined) {
+                    // Para conectores com índice específico (ask-question), calcular posição exata
+                    const connectorRect = this.getConnectorPosition(this.startConnector);
+                    startX = connectorRect.x + connectorRect.width / 2;
+                    startY = connectorRect.y + connectorRect.height / 2;
+                } else {
+                    // Para conectores simples, usar posição padrão
+                    startX = startRect.x + startRect.width;
+                    startY = startRect.y + startRect.height / 2;
+                }
+                
                 const endX = endRect.x;
                 const endY = endRect.y + endRect.height / 2;
                 
@@ -654,6 +665,27 @@
             getElementPosition(element) {
                 // Usar getBoundingClientRect para obter posição real do elemento
                 const rect = element.getBoundingClientRect();
+                const canvasRect = flowCanvas.getBoundingClientRect();
+                
+                // Calcular posição relativa ao canvas
+                const relativeX = rect.left - canvasRect.left;
+                const relativeY = rect.top - canvasRect.top;
+                
+                // Converter para coordenadas do SVG (considerando pan e zoom)
+                const svgX = (relativeX - panX) / zoom;
+                const svgY = (relativeY - panY) / zoom;
+                
+                return {
+                    x: svgX,
+                    y: svgY,
+                    width: rect.width / zoom,
+                    height: rect.height / zoom
+                };
+            }
+            
+            getConnectorPosition(connector) {
+                // Usar getBoundingClientRect para obter posição real do conector específico
+                const rect = connector.getBoundingClientRect();
                 const canvasRect = flowCanvas.getBoundingClientRect();
                 
                 // Calcular posição relativa ao canvas

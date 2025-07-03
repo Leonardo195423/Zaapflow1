@@ -22,11 +22,7 @@
             --accent-yellow: #FFD23F; --accent-yellow-dark: #F8B700;
             --accent-yellow-glow: rgba(255, 210, 63, 0.5); --shadow-color: rgba(0, 0, 0, 0.5);
         }
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-main); 
-            color: var(--text-primary);
-        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-primary); }
         
         #flow-canvas {
             background-color: var(--bg-main);
@@ -281,35 +277,6 @@
         #toast-notification.show {
             transform: translate(-50%, 0);
         }
-
-        /* Medidas de segurança adicionais */
-        /* Removidas as regras globais que impediam o drag-and-drop e seleção */
-        
-        /* Permitir seleção apenas em inputs necessários */
-        input[type="text"], input[type="password"], input[type="number"], textarea {
-            -webkit-user-select: text !important;
-            -moz-user-select: text !important;
-            -ms-user-select: text !important;
-            user-select: text !important;
-        }
-
-        /* Desabilitar arrastar imagens */
-        img {
-            -webkit-user-drag: none;
-            -khtml-user-drag: none;
-            -moz-user-drag: none;
-            -o-user-drag: none;
-            user-drag: none;
-            /* pointer-events: none; */ /* Removido para permitir arrastar imagens se necessário */
-        }
-
-        /* Ocultar texto quando selecionado */
-        ::selection {
-            background: transparent;
-        }
-        ::-moz-selection {
-            background: transparent;
-        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -472,145 +439,6 @@
     <div id="toast-notification">Mensagem aqui</div>
 
     <script>
-    // === MEDIDAS DE SEGURANÇA ===
-    (function() {
-        'use strict';
-        
-        // Desabilitar botão direito do mouse
-        document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, true);
-
-        // Desabilitar atalhos de teclado perigosos
-        document.addEventListener('keydown', function(e) {
-            // F12 (DevTools)
-            if (e.keyCode === 123) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+Shift+I (DevTools)
-            if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+Shift+J (Console)
-            if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+U (View Source)
-            if (e.ctrlKey && e.keyCode === 85) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+S (Save Page)
-            if (e.ctrlKey && e.keyCode === 83) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+A (Select All)
-            if (e.ctrlKey && e.keyCode === 65) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+P (Print)
-            if (e.ctrlKey && e.keyCode === 80) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+C (Copy)
-            if (e.ctrlKey && e.keyCode === 67) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+V (Paste)
-            if (e.ctrlKey && e.keyCode === 86) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            
-            // Ctrl+X (Cut)
-            if (e.ctrlKey && e.keyCode === 88) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-        }, true);
-
-        // Detectar ferramentas de desenvolvedor
-        let devtools = {
-            open: false,
-            orientation: null
-        };
-        
-        const threshold = 160;
-        
-        setInterval(function() {
-            if (window.outerHeight - window.innerHeight > threshold || 
-                window.outerWidth - window.innerWidth > threshold) {
-                if (!devtools.open) {
-                    devtools.open = true;
-                    // Redirecionar ou mostrar aviso
-                    document.body.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Arial; font-size: 24px; text-align: center;"><div><h1>⚠️ Acesso Negado</h1><p>Ferramentas de desenvolvedor detectadas.</p><p>Esta página não pode ser acessada com DevTools aberto.</p></div></div>';
-                }
-            } else {
-                devtools.open = false;
-            }
-        }, 500);
-
-        // Desabilitar seleção de texto via JavaScript (mantido apenas para inputs, se necessário)
-        // document.onselectstart = function() { return false; };
-        
-        // Removido para permitir arrastar elementos no canvas
-        // document.onmousedown = function() { return false; };
-
-        // Removido para permitir arrastar elementos no canvas
-        // document.ondragstart = function() { return false; };
-
-        // Limpar console periodicamente
-        setInterval(function() {
-            console.clear();
-        }, 1000);
-
-        // Detectar tentativas de debug
-        let startTime = new Date();
-        debugger;
-        let endTime = new Date();
-        if (endTime - startTime > 100) {
-            document.body.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Arial; font-size: 24px; text-align: center;"><div><h1>⚠️ Debug Detectado</h1><p>Tentativa de debug detectada.</p></div></div>';
-        }
-
-        // Ofuscar código fonte
-        setTimeout(function() {
-            const scripts = document.querySelectorAll('script');
-            scripts.forEach(script => {
-                if (script.innerHTML.includes('MEDIDAS DE SEGURANÇA')) {
-                    script.innerHTML = script.innerHTML.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-                }
-            });
-        }, 1000);
-
-    })();
-
     document.addEventListener('DOMContentLoaded', () => {
         // --- LÓGICA DE LOGIN E LOGOUT ---
         const loginOverlay = document.getElementById('login-overlay');
@@ -766,8 +594,7 @@
                 if (this.startConnector.dataset.outputIndex !== undefined) {
                     // Para conectores com índice específico (ask-question), calcular posição exata
                     const connectorRect = this.getConnectorPosition(this.startConnector);
-                    // Ajustar para sair do centro direito do conector
-                    startX = connectorRect.x + connectorRect.width;
+                    startX = connectorRect.x + connectorRect.width / 2;
                     startY = connectorRect.y + connectorRect.height / 2;
                 } else {
                     // Para conectores simples, usar posição padrão

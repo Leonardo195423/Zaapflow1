@@ -26,13 +26,6 @@
             font-family: 'Inter', sans-serif; 
             background-color: var(--bg-main); 
             color: var(--text-primary);
-            /* Medidas de segurança - Desabilitar seleção de texto */
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-            -webkit-tap-highlight-color: transparent;
         }
         
         #flow-canvas {
@@ -290,12 +283,7 @@
         }
 
         /* Medidas de segurança adicionais */
-        * {
-            -webkit-user-select: none !important;
-            -moz-user-select: none !important;
-            -ms-user-select: none !important;
-            user-select: none !important;
-        }
+        /* Removidas as regras globais que impediam o drag-and-drop e seleção */
         
         /* Permitir seleção apenas em inputs necessários */
         input[type="text"], input[type="password"], input[type="number"], textarea {
@@ -312,7 +300,7 @@
             -moz-user-drag: none;
             -o-user-drag: none;
             user-drag: none;
-            pointer-events: none;
+            /* pointer-events: none; */ /* Removido para permitir arrastar imagens se necessário */
         }
 
         /* Ocultar texto quando selecionado */
@@ -589,19 +577,14 @@
             }
         }, 500);
 
-        // Desabilitar seleção de texto via JavaScript
-        document.onselectstart = function() {
-            return false;
-        };
+        // Desabilitar seleção de texto via JavaScript (mantido apenas para inputs, se necessário)
+        // document.onselectstart = function() { return false; };
         
-        document.onmousedown = function() {
-            return false;
-        };
+        // Removido para permitir arrastar elementos no canvas
+        // document.onmousedown = function() { return false; };
 
-        // Desabilitar arrastar
-        document.ondragstart = function() {
-            return false;
-        };
+        // Removido para permitir arrastar elementos no canvas
+        // document.ondragstart = function() { return false; };
 
         // Limpar console periodicamente
         setInterval(function() {

@@ -15,91 +15,10 @@
     <!-- Biblioteca para criar arquivos ZIP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-    <!-- Sistema de Proteção Anti-Cópia -->
+    <!-- Sistema de Proteção Anti-Cópia Simplificado -->
     <script>
     (function() {
         'use strict';
-        
-        // HTML "isca" - o que aparece no código fonte
-        const decoyHTML = `
-        <!DOCTYPE html>
-        <html lang="pt-br">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Página Protegida</title>
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
-                .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                .warning { color: #e74c3c; font-size: 18px; margin-bottom: 20px; }
-                .info { color: #666; line-height: 1.6; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>⚠️ Conteúdo Protegido</h1>
-                <p class="warning">Este conteúdo está protegido contra cópia não autorizada.</p>
-                <p class="info">O código fonte que você está visualizando é apenas uma versão simplificada. O conteúdo real é gerado dinamicamente e não pode ser copiado através do código fonte.</p>
-                <p class="info">Para acessar o conteúdo completo, visite a página normalmente através do navegador.</p>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
-                <p style="font-size: 12px; color: #999;">© 2025 - Todos os direitos reservados</p>
-            </div>
-        </body>
-        </html>`;
-        
-        // Detectar se está sendo executado em contexto normal ou como código fonte
-        let isNormalExecution = true;
-        
-        try {
-            // Verificações para detectar visualização de código fonte
-            if (typeof window === 'undefined' || 
-                typeof document === 'undefined' || 
-                !window.location || 
-                window.location.protocol === 'view-source:' ||
-                document.readyState === 'loading' && !document.body) {
-                isNormalExecution = false;
-            }
-            
-            // Verificar se JavaScript está sendo executado normalmente
-            if (isNormalExecution) {
-                const testDiv = document.createElement('div');
-                if (!testDiv || typeof testDiv.style === 'undefined') {
-                    isNormalExecution = false;
-                }
-            }
-        } catch (e) {
-            isNormalExecution = false;
-        }
-        
-        // Se não for execução normal, substituir o HTML
-        if (!isNormalExecution) {
-            if (typeof document !== 'undefined' && document.write) {
-                document.write(decoyHTML);
-            }
-            return;
-        }
-        
-        // Proteção adicional: substituir HTML se detectar tentativas de cópia
-        const protectHTML = () => {
-            // Detectar se DevTools estão abertas (método mais sutil)
-            let devtools = false;
-            const threshold = 160;
-            
-            if (window.outerHeight - window.innerHeight > threshold || 
-                window.outerWidth - window.innerWidth > threshold) {
-                devtools = true;
-            }
-            
-            // Se DevTools detectadas, não fazer nada drástico, apenas log
-            if (devtools) {
-                console.clear();
-                console.log('%c⚠️ Conteúdo Protegido', 'color: #e74c3c; font-size: 16px; font-weight: bold;');
-                console.log('%cEste conteúdo está protegido contra cópia não autorizada.', 'color: #666; font-size: 12px;');
-            }
-        };
-        
-        // Monitorar tentativas de acesso ao código
-        setInterval(protectHTML, 1000);
         
         // Interceptar tentativas de salvar página
         document.addEventListener('keydown', function(e) {
@@ -574,14 +493,9 @@
     (function() {
         'use strict';
         
-        // Desabilitar botão direito do mouse
-        document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, true);
+        // Botão direito e Ctrl+C HABILITADOS conforme solicitado
 
-        // Desabilitar atalhos de teclado perigosos
+        // Desabilitar atalhos de teclado perigosos (mantendo Ctrl+C habilitado)
         document.addEventListener('keydown', function(e) {
             // F12 (DevTools)
             if (e.keyCode === 123) {
